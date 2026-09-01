@@ -1,0 +1,15 @@
+# Ignore Bob internal / temp files
+.bob/
+.bob_cl_tmp.json
+.bob_org_tmp.json
+
+# Ignore OS-specific files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
