@@ -8007,8 +8007,8 @@ html_content = f"""<!DOCTYPE html>
                 if (orgDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
                 }} else {{
-                    const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*[\r\n]/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + "\n");
+                    const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*/;
+                    updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + String.fromCharCode(10));
                 }}
 
                 // Replace callListData line
@@ -8017,8 +8017,8 @@ html_content = f"""<!DOCTYPE html>
                 if (callListDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
                 }} else {{
-                    const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*[\r\n]/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + "\n");
+                    const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*/;
+                    updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + String.fromCharCode(10));
                 }}
 
                 statusEl.innerHTML = '<span style="color:#2563eb; font-weight:700;">📤 Committing and pushing to GitHub...</span>';
@@ -8144,8 +8144,8 @@ html_content = f"""<!DOCTYPE html>
                 if (orgDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
                 }} else {{
-                    const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*[\r\n]/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + "\n");
+                    const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*/;
+                    updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + String.fromCharCode(10));
                 }}
 
                 // Replace callListData line
@@ -8154,8 +8154,8 @@ html_content = f"""<!DOCTYPE html>
                 if (callListDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
                 }} else {{
-                    const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*[\r\n]/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + "\n");
+                    const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*/;
+                    updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + String.fromCharCode(10));
                 }}
 
                 const encodedContent = btoa(unescape(encodeURIComponent(updatedHTML)));
