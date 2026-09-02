@@ -2934,6 +2934,24 @@
 
                 });
 
+                function saveTreeNodes(node) {
+                    if (!node) return;
+                    const id = (node.name || "").toLowerCase().replace(/[^a-z0-9]/g, "_");
+                    edits[id] = {
+                        priority:      node.priority      || "",
+                        owner:         node.owner         || "",
+                        products:      node.products      || "",
+                        notes:         node.notes         || "",
+                        schedule:      node.schedule      || "",
+                        schedule_week: node.schedule_week || 0,
+                        title:         node.title         || ""
+                    };
+                    if (node.children) {
+                        node.children.forEach(c => saveTreeNodes(c));
+                    }
+                }
+                saveTreeNodes(orgData);
+
                 localStorage.setItem(LS_KEY, JSON.stringify(edits));
 
             } catch(e) { console.warn("Autosave failed:", e.message); }
@@ -4668,10 +4686,11 @@
                     throw new Error(`Failed to save file to GitHub (${putRes.status}): ${errText}`);
                 }
 
-                statusEl.innerHTML = '<span style="color:#16a34a; font-weight:700;">✅ Success! Changes committed & pushed directly.<br><span style="font-size:11px; font-weight:normal; color:#475569;">GitHub Pages will update your live portal in 30-60 seconds.</span></span>';
-                
-                // Clear any local localStorage edits since they are now pushed permanently to master!
-                localStorage.removeItem(LS_KEY);
+                const putData = await putRes.json();
+                const newSha = putData.content.sha;
+                localStorage.setItem(GH_KEY_PREFIX + "last_pushed_sha", newSha);
+
+                statusEl.innerHTML = '<span style="color:#16a34a; font-weight:700;">✅ Success! Changes committed & pushed directly.<br><span style="font-size:11px; font-weight:normal; color:#475569;">Saved locally and pushed to GitHub. Clearing local cache as soon as GitHub Pages deploys in 30-60s...</span></span>';
                 
                 updateGitHubSyncButtonState();
 
@@ -4800,8 +4819,11 @@
                     throw new Error(`Commit failed (${putRes.status})`);
                 }
 
-                showToast("Saved & Synced to GitHub!", "success");
-                localStorage.removeItem(LS_KEY);
+                const putData = await putRes.json();
+                const newSha = putData.content.sha;
+                localStorage.setItem(GH_KEY_PREFIX + "last_pushed_sha", newSha);
+
+                showToast("Saved & Synced to GitHub! (Deploying in background...)", "success");
 
             } catch (error) {
                 console.error("Auto-sync failed:", error);
@@ -4841,6 +4863,14 @@
                 const data = await res.json();
                 const currentSha = data.sha;
 
+                // Check if the deployed file has our last pushed changes
+                const lastPushedSha = localStorage.getItem(GH_KEY_PREFIX + "last_pushed_sha");
+                if (lastPushedSha && currentSha === lastPushedSha) {
+                    console.log("GitHub Pages / Repository has deployed our latest edits. Clearing temporary local storage edits.");
+                    localStorage.removeItem(LS_KEY);
+                    localStorage.removeItem(GH_KEY_PREFIX + "last_pushed_sha");
+                }
+
                 if (!lastKnownFileSha) {
                     lastKnownFileSha = currentSha;
                     return;
@@ -4877,7 +4907,7 @@
 
         function startRealTimeSync() {
             if (updateCheckInterval) clearInterval(updateCheckInterval);
-            setTimeout(checkGitHubForUpdates, 5000);
+            checkGitHubForUpdates(); // Run immediately on startup
             updateCheckInterval = setInterval(checkGitHubForUpdates, 30000);
         }
 
