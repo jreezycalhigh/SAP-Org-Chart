@@ -5471,6 +5471,7 @@ html_content = f"""<!DOCTYPE html>
         let callListData = {json.dumps(call_list, ensure_ascii=False)};
 
         // Filter state
+        const GH_KEY_PREFIX = "sap_gh_";
 
         let onlyShowPrioritized = false;
 
@@ -7888,8 +7889,6 @@ html_content = f"""<!DOCTYPE html>
         }}
 
         // -- GitHub Repository Sync Integration --
-
-        const GH_KEY_PREFIX = "sap_gh_";
 
         function loadSyncCredentials() {{
             try {{
