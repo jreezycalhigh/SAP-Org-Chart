@@ -4629,7 +4629,7 @@
                 if (orgDataRegex.test(updatedHTML)) {
                     updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
                 } else {
-                    const fallbackRegex = /let orgData = \{[^]*?\};\s*[
+                    const fallbackRegex = /let orgData = \{[^]*?\};\s*[
 ]/;
                     updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + "
 ");
@@ -4641,7 +4641,7 @@
                 if (callListDataRegex.test(updatedHTML)) {
                     updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
                 } else {
-                    const fallbackRegex = /let callListData = \\[[^]*?\\];\s*[
+                    const fallbackRegex = /let callListData = \\[[^]*?\\];\s*[
 ]/;
                     updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + "
 ");
@@ -4770,7 +4770,7 @@
                 if (orgDataRegex.test(updatedHTML)) {
                     updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
                 } else {
-                    const fallbackRegex = /let orgData = \{[^]*?\};\s*[
+                    const fallbackRegex = /let orgData = \{[^]*?\};\s*[
 ]/;
                     updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + "
 ");
@@ -4782,7 +4782,7 @@
                 if (callListDataRegex.test(updatedHTML)) {
                     updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
                 } else {
-                    const fallbackRegex = /let callListData = \\[[^]*?\\];\s*[
+                    const fallbackRegex = /let callListData = \\[[^]*?\\];\s*[
 ]/;
                     updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + "
 ");
