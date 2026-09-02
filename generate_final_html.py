@@ -8261,7 +8261,7 @@ html_content = f"""<!DOCTYPE html>
 
         // Auto-run loadSyncCredentials on startup
         window.addEventListener("DOMContentLoaded", () => {{
-            updateGitHubSyncButtonState();
+            loadSyncCredentials();
             startRealTimeSync();
         }});
 
