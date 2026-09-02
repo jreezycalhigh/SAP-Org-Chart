@@ -8002,23 +8002,23 @@ html_content = f"""<!DOCTYPE html>
                 let updatedHTML = originalHTML;
 
                 // Replace orgData line
-                const orgDataRegex = /let orgData = \\{{[^]*?\\}}/;
+                const orgDataRegex = /let orgData = \\{{.*\\}};/;
                 const newOrgDataLine = "let orgData = " + JSON.stringify(orgData) + ";";
                 if (orgDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
                 }} else {{
-                    const fallbackRegex = /let orgData = \\{{.*?\\}}/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, "let orgData = " + JSON.stringify(orgData) + ";");
+                    const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*[\r\n]/;
+                    updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + "\n");
                 }}
 
                 // Replace callListData line
-                const callListDataRegex = /let callListData = \\[[^]*?\\];/;
+                const callListDataRegex = /let callListData = \\[.*\\];/;
                 const newCallListDataLine = "let callListData = " + JSON.stringify(callListData) + ";";
                 if (callListDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
                 }} else {{
-                    const fallbackRegex = /let callListData = \\[.*?\\];/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, "let callListData = " + JSON.stringify(callListData) + ";");
+                    const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*[\r\n]/;
+                    updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + "\n");
                 }}
 
                 statusEl.innerHTML = '<span style="color:#2563eb; font-weight:700;">📤 Committing and pushing to GitHub...</span>';
@@ -8139,23 +8139,23 @@ html_content = f"""<!DOCTYPE html>
                 let updatedHTML = originalHTML;
 
                 // Replace orgData line
-                const orgDataRegex = /let orgData = \\{{[^]*?\\}}/;
+                const orgDataRegex = /let orgData = \\{{.*\\}};/;
                 const newOrgDataLine = "let orgData = " + JSON.stringify(orgData) + ";";
                 if (orgDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
                 }} else {{
-                    const fallbackRegex = /let orgData = \\{{.*?\\}}/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, "let orgData = " + JSON.stringify(orgData) + ";");
+                    const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*[\r\n]/;
+                    updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + "\n");
                 }}
 
                 // Replace callListData line
-                const callListDataRegex = /let callListData = \\[[^]*?\\];/;
+                const callListDataRegex = /let callListData = \\[.*\\];/;
                 const newCallListDataLine = "let callListData = " + JSON.stringify(callListData) + ";";
                 if (callListDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
                 }} else {{
-                    const fallbackRegex = /let callListData = \\[.*?\\];/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, "let callListData = " + JSON.stringify(callListData) + ";");
+                    const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*[\r\n]/;
+                    updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + "\n");
                 }}
 
                 const encodedContent = btoa(unescape(encodeURIComponent(updatedHTML)));
