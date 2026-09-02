@@ -8002,22 +8002,22 @@ html_content = f"""<!DOCTYPE html>
                 let updatedHTML = originalHTML;
 
                 // Replace orgData line
-                const orgDataRegex = /let orgData = \\\\{{[^]*?\\\\}}/;
+                const orgDataRegex = /let orgData = \\{{[^]*?\\}}/;
                 const newOrgDataLine = "let orgData = " + JSON.stringify(orgData) + ";";
                 if (orgDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
                 }} else {{
-                    const fallbackRegex = /let orgData = \\\\{{.*?\\\\}}/;
+                    const fallbackRegex = /let orgData = \\{{.*?\\}}/;
                     updatedHTML = updatedHTML.replace(fallbackRegex, "let orgData = " + JSON.stringify(orgData) + ";");
                 }}
 
                 // Replace callListData line
-                const callListDataRegex = /let callListData = \\\\[[^]*?\\\\];/;
+                const callListDataRegex = /let callListData = \\[[^]*?\\];/;
                 const newCallListDataLine = "let callListData = " + JSON.stringify(callListData) + ";";
                 if (callListDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
                 }} else {{
-                    const fallbackRegex = /let callListData = \\\\[.*?\\\\];/;
+                    const fallbackRegex = /let callListData = \\[.*?\\];/;
                     updatedHTML = updatedHTML.replace(fallbackRegex, "let callListData = " + JSON.stringify(callListData) + ";");
                 }}
 
@@ -8139,22 +8139,22 @@ html_content = f"""<!DOCTYPE html>
                 let updatedHTML = originalHTML;
 
                 // Replace orgData line
-                const orgDataRegex = /let orgData = \\\\{{[^]*?\\\\}}/;
+                const orgDataRegex = /let orgData = \\{{[^]*?\\}}/;
                 const newOrgDataLine = "let orgData = " + JSON.stringify(orgData) + ";";
                 if (orgDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
                 }} else {{
-                    const fallbackRegex = /let orgData = \\\\{{.*?\\\\}}/;
+                    const fallbackRegex = /let orgData = \\{{.*?\\}}/;
                     updatedHTML = updatedHTML.replace(fallbackRegex, "let orgData = " + JSON.stringify(orgData) + ";");
                 }}
 
                 // Replace callListData line
-                const callListDataRegex = /let callListData = \\\\[[^]*?\\\\];/;
+                const callListDataRegex = /let callListData = \\[[^]*?\\];/;
                 const newCallListDataLine = "let callListData = " + JSON.stringify(callListData) + ";";
                 if (callListDataRegex.test(updatedHTML)) {{
                     updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
                 }} else {{
-                    const fallbackRegex = /let callListData = \\\\[.*?\\\\];/;
+                    const fallbackRegex = /let callListData = \\[.*?\\];/;
                     updatedHTML = updatedHTML.replace(fallbackRegex, "let callListData = " + JSON.stringify(callListData) + ";");
                 }}
 
