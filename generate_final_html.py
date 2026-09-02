@@ -5068,11 +5068,6 @@ html_content = f"""<!DOCTYPE html>
 
             </div>
 
-            <div class="btn-group" style="margin-left: auto;">
-
-                <button class="btn" onclick="clearLocalStorage()" title="Clear any saved browser data and reload fresh" style="background:#fef2f2; color:#b91c1c; border-color:#fca5a5; font-size:12px;">Clear Saved Data</button>
-
-            </div>
 
         </div>
 
