@@ -8200,9 +8200,82 @@ html_content = f"""<!DOCTYPE html>
             }}
         }}
 
+        let lastKnownFileSha = null;
+        let updateCheckInterval = null;
+
+        async function checkGitHubForUpdates() {{
+            // Safety guard: if user is currently editing a contact, don't auto-update to avoid losing their typed input
+            const editMode = document.getElementById("edit-mode-container");
+            if (editMode && editMode.style.display === "block") {{
+                return;
+            }}
+
+            const owner = localStorage.getItem(GH_KEY_PREFIX + "owner") || "jreezycalhigh";
+            const repo = localStorage.getItem(GH_KEY_PREFIX + "repo") || "SAP-Org-Chart";
+            const path = localStorage.getItem(GH_KEY_PREFIX + "path") || "SAP_Account_Priority_Outreach_Hub.html";
+            const branch = localStorage.getItem(GH_KEY_PREFIX + "branch") || "main";
+            const pat = localStorage.getItem(GH_KEY_PREFIX + "pat") || "";
+
+            const headers = {{
+                "Accept": "application/vnd.github.v3+json",
+                "Cache-Control": "no-cache"
+            }};
+            if (pat) {{
+                headers["Authorization"] = `token ${{pat}}`;
+            }}
+
+            try {{
+                const url = `https://api.github.com/repos/${{owner}}/${{repo}}/contents/${{path}}?ref=${{branch}}`;
+                const res = await fetch(url, {{ headers }});
+                if (!res.ok) return;
+
+                const data = await res.json();
+                const currentSha = data.sha;
+
+                if (!lastKnownFileSha) {{
+                    lastKnownFileSha = currentSha;
+                    return;
+                }}
+
+                if (currentSha !== lastKnownFileSha) {{
+                    console.log("Detecting new remote changes on GitHub. Syncing real-time...");
+                    
+                    const b64Raw = data.content.replace(/\s/g, "");
+                    const remoteHTML = decodeURIComponent(escape(atob(b64Raw)));
+
+                    const orgDataMatch = remoteHTML.match(/let orgData = (\\{{[^]*?\\}});/);
+                    const callListDataMatch = remoteHTML.match(/let callListData = (\\\\[[^]*?\\\\]);/);
+
+                    if (orgDataMatch && callListDataMatch) {{
+                        const newOrgData = JSON.parse(orgDataMatch[1]);
+                        const newCallListData = JSON.parse(callListDataMatch[1]);
+
+                        orgData = newOrgData;
+                        callListData = newCallListData;
+
+                        renderOrgTree();
+                        renderCallList();
+                        renderScheduleTab();
+
+                        showToast("Updated with live remote changes!", "success");
+                        lastKnownFileSha = currentSha;
+                    }}
+                }}
+            }} catch (err) {{
+                console.warn("Real-time update check failed:", err);
+            }}
+        }}
+
+        function startRealTimeSync() {{
+            if (updateCheckInterval) clearInterval(updateCheckInterval);
+            setTimeout(checkGitHubForUpdates, 5000);
+            updateCheckInterval = setInterval(checkGitHubForUpdates, 30000);
+        }}
+
         // Auto-run loadSyncCredentials on startup
         window.addEventListener("DOMContentLoaded", () => {{
             updateGitHubSyncButtonState();
+            startRealTimeSync();
         }});
 
     </script>
