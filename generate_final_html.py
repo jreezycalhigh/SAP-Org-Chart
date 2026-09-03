@@ -3628,6 +3628,54 @@ html_content = f"""<!DOCTYPE html>
 
         }}
 
+        .search-dropdown {{
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 1000;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-top: 4px;
+            display: none;
+        }}
+
+        .search-dropdown-item {{
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+        }}
+
+        .search-dropdown-item:last-child {{
+            border-bottom: none;
+        }}
+
+        .search-dropdown-item:hover {{
+            background-color: var(--surface-color);
+            filter: brightness(0.95);
+        }}
+
+        .search-dropdown-item .name {{
+            font-weight: 600;
+            color: var(--text-color);
+        }}
+
+        .search-dropdown-item .title {{
+            font-size: 11px;
+            color: var(--muted-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+
         .search-icon {{
 
             position: absolute;
@@ -5040,7 +5088,9 @@ html_content = f"""<!DOCTYPE html>
 
             <div class="search-container">
 
-                <input type="text" id="global-search" class="search-input" placeholder="Search contact names or titles..." oninput="handleSearch(this.value)">
+                <input type="text" id="global-search" class="search-input" autocomplete="off" placeholder="Search contact names or titles..." oninput="handleSearch(this.value)">
+
+                <div id="search-dropdown" class="search-dropdown"></div>
 
             </div>
 
@@ -7678,7 +7728,130 @@ html_content = f"""<!DOCTYPE html>
 
         // Search functionality
 
+        function centerOnCard(cardElement) {{
+            const viewport = document.getElementById("org-tree-wrapper");
+            if (!viewport || !cardElement) return;
+
+            const viewportRect = viewport.getBoundingClientRect();
+            const cardRect = cardElement.getBoundingClientRect();
+
+            // Calculate current screen center difference
+            const diffX = (viewportRect.left + viewportRect.width / 2) - (cardRect.left + cardRect.width / 2);
+            const diffY = (viewportRect.top + viewportRect.height / 2) - (cardRect.top + cardRect.height / 2);
+
+            // Shift our panX and panY by the difference
+            panX += diffX;
+            panY += diffY;
+
+            // Apply the transform
+            updateTransform();
+        }}
+
+        function getAllUniqueContacts() {{
+            const contactsMap = new Map();
+
+            // 1. Collect from callListData
+            callListData.forEach(c => {{
+                if (c.name) {{
+                    contactsMap.set(c.name.toLowerCase().trim(), {{
+                        name: c.name,
+                        title: c.title || ""
+                    }});
+                }}
+            }});
+
+            // 2. Collect from orgData tree recursively
+            function traverse(node) {{
+                if (!node) return;
+                if (node.name) {{
+                    contactsMap.set(node.name.toLowerCase().trim(), {{
+                        name: node.name,
+                        title: node.title || ""
+                    }});
+                }}
+                if (node.children) {{
+                    node.children.forEach(c => traverse(c));
+                }}
+            }}
+            traverse(orgData);
+
+            return Array.from(contactsMap.values());
+        }}
+
+        function updateSearchDropdown(val) {{
+            const dropdown = document.getElementById("search-dropdown");
+            if (!dropdown) return;
+
+            const searchVal = val.toLowerCase().trim();
+            if (searchVal.length < 3) {{
+                dropdown.style.display = "none";
+                return;
+            }}
+
+            const allContacts = getAllUniqueContacts();
+            const matches = allContacts.filter(c => c.name.toLowerCase().includes(searchVal));
+
+            if (matches.length === 0) {{
+                dropdown.style.display = "none";
+                return;
+            }}
+
+            dropdown.innerHTML = "";
+            matches.forEach(c => {{
+                const item = document.createElement("div");
+                item.className = "search-dropdown-item";
+                item.innerHTML = `
+                    <div class="name">${{c.name}}</div>
+                    <div class="title">${{c.title}}</div>
+                `;
+                item.addEventListener("click", () => {{
+                    selectSearchDropdownItem(c.name);
+                }});
+                dropdown.appendChild(item);
+            }});
+
+            dropdown.style.display = "block";
+        }}
+
+        function selectSearchDropdownItem(name) {{
+            document.getElementById("global-search").value = name;
+            const dropdown = document.getElementById("search-dropdown");
+            if (dropdown) dropdown.style.display = "none";
+
+            // Switch to Org Chart tab programmatically
+            document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+            document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+            
+            document.getElementById("org-chart-tab").classList.add("active");
+            const orgChartBtn = Array.from(document.querySelectorAll(".tab-btn")).find(b => b.getAttribute("onclick") && b.getAttribute("onclick").includes("org-chart-tab"));
+            if (orgChartBtn) orgChartBtn.classList.add("active");
+            document.getElementById("global-search").placeholder = "Search contact names or titles...";
+
+            // Trigger the normal search
+            handleSearch(name);
+
+            // Center on the searched name
+            const cardId = "card-" + name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+            const cardElement = document.getElementById(cardId);
+            if (cardElement) {{
+                setTimeout(() => {{
+                    centerOnCard(cardElement);
+                }}, 100);
+            }}
+        }}
+
+        // Dismiss search dropdown on clicking outside
+        window.addEventListener("click", (e) => {{
+            const dropdown = document.getElementById("search-dropdown");
+            const searchInput = document.getElementById("global-search");
+            if (dropdown && e.target !== dropdown && e.target !== searchInput && !dropdown.contains(e.target)) {{
+                dropdown.style.display = "none";
+            }}
+        }});
+
         function handleSearch(val) {{
+
+            updateSearchDropdown(val);
 
             const searchVal = val.toLowerCase().trim();
 
