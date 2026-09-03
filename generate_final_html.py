@@ -3790,8 +3790,6 @@ html_content = f"""<!DOCTYPE html>
 
             transform-origin: top center;
 
-            transition: transform 0.05s ease-out;
-
             position: absolute;
 
             top: 40px;
@@ -6310,7 +6308,16 @@ html_content = f"""<!DOCTYPE html>
 
                 e.preventDefault();
 
-                const zoomFactor = 0.015;
+                const rect = viewport.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                // Pivot calculations to zoom directly where the mouse is pointing
+                const dx = mouseX - rect.width / 2 - panX;
+                const dy = mouseY - panY;
+
+                const zoomFactor = 0.04;
+                const oldZoom = zoom;
 
                 if (e.deltaY < 0) {{
 
@@ -6321,6 +6328,10 @@ html_content = f"""<!DOCTYPE html>
                     zoom = Math.max(0.15, zoom - zoomFactor);
 
                 }}
+
+                const ratio = zoom / oldZoom;
+                panX = mouseX - rect.width / 2 - dx * ratio;
+                panY = mouseY - dy * ratio;
 
                 updateTransform();
 
