@@ -6316,7 +6316,7 @@ html_content = f"""<!DOCTYPE html>
                 const dx = mouseX - rect.width / 2 - panX;
                 const dy = mouseY - panY;
 
-                const zoomFactor = 0.04;
+                const zoomFactor = 0.02;
                 const oldZoom = zoom;
 
                 if (e.deltaY < 0) {{
