@@ -3375,6 +3375,8 @@ for k, c in contacts.items():
 call_list.sort(key=lambda x: priority_order.get(x["priority"], 9))
 
 # Write out the full html page!
+schedule_options_html = '<option value="N/A">N/A</option>\\n<option value="This Week">This Week</option>\\n' + "\\n".join(f'<option value="Week {w}">Week {w}</option>' for w in range(2, 31))
+
 
 html_content = f"""<!DOCTYPE html>
 
@@ -5231,6 +5233,8 @@ html_content = f"""<!DOCTYPE html>
 
                     <option value="overdue">Overdue</option>
 
+                    <option value="late">Late (Uncontacted)</option>
+
                 </select>
 
                 <span id="schedule-count-badge" style="font-size: 12px; color: #57606a; white-space: nowrap;"></span>
@@ -5408,6 +5412,46 @@ html_content = f"""<!DOCTYPE html>
 
                 </div>
 
+                <div class="detail-row">
+
+                    <div class="detail-label">Email</div>
+
+                    <div class="detail-value" id="det-email">-</div>
+
+                </div>
+
+                <div class="detail-row">
+
+                    <div class="detail-label">LinkedIn Profile</div>
+
+                    <div class="detail-value" id="det-linkedin">-</div>
+
+                </div>
+
+                <div class="detail-row">
+
+                    <div class="detail-label">ISC Link (CSM Platform)</div>
+
+                    <div class="detail-value" id="det-isc-link">-</div>
+
+                </div>
+
+                <div class="detail-row">
+
+                    <div class="detail-label">Last Time Contacted</div>
+
+                    <div class="detail-value" id="det-last-contacted">-</div>
+
+                </div>
+
+                <div class="detail-row" id="det-steps-row" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+
+                    <div class="detail-label" style="font-weight: 700; margin-bottom: 8px;">Outreach Step Sequence</div>
+
+                    <div id="det-steps-container" style="display: flex; flex-direction: column; gap: 6px;"></div>
+
+                </div>
+
                 <button class="btn primary" onclick="enterEditMode()" style="width: 100%; margin-top: 12px; justify-content: center;">Edit Contact Details</button>
 
             </div>
@@ -5472,11 +5516,49 @@ html_content = f"""<!DOCTYPE html>
 
                     <select id="edit-schedule" class="form-input">
 
-                        <option value="N/A">N/A</option>
-
-                        {" ".join(f'<option value="Week {{w}}">Week {{w}}</option>' for w in range(1, 31))}
+                        {schedule_options_html}
 
                     </select>
+
+                </div>
+
+                <div class="detail-row">
+
+                    <div class="detail-label">Email</div>
+
+                    <input type="email" id="edit-email" class="form-input" placeholder="e.g. contact@sap.com">
+
+                </div>
+
+                <div class="detail-row">
+
+                    <div class="detail-label">LinkedIn URL</div>
+
+                    <input type="text" id="edit-linkedin" class="form-input" placeholder="https://linkedin.com/in/...">
+
+                </div>
+
+                <div class="detail-row">
+
+                    <div class="detail-label">ISC Link (CSM Platform)</div>
+
+                    <input type="text" id="edit-isc-link" class="form-input" placeholder="https://isc.sap.com/...">
+
+                </div>
+
+                <div class="detail-row">
+
+                    <div class="detail-label">Last Time Contacted</div>
+
+                    <input type="date" id="edit-last-contacted" class="form-input">
+
+                </div>
+
+                <div class="detail-row" id="edit-steps-row" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+
+                    <div class="detail-label" style="font-weight: 700; margin-bottom: 8px;">Edit Step Sequence</div>
+
+                    <div id="edit-steps-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
 
                 </div>
 
@@ -5520,6 +5602,35 @@ html_content = f"""<!DOCTYPE html>
 
         // Filter state
         const GH_KEY_PREFIX = "sap_gh_";
+
+        const CHANNEL_EMOJIS = {{
+            linkedin: "🔗",
+            email: "✉️",
+            call: "📞",
+            meeting: "🤝",
+            chat: "💬",
+            note: "📝",
+            other: "🚀"
+        }};
+
+        function ensureContactFields(contact) {{
+            if (!contact) return;
+            if (!contact.email) contact.email = "";
+            if (!contact.linkedinUrl) contact.linkedinUrl = "";
+            if (!contact.iscLink) contact.iscLink = "";
+            if (!contact.lastTimeContacted) contact.lastTimeContacted = "";
+            if (!contact.steps || contact.steps.length !== 7) {{
+                contact.steps = [
+                    {{ completed: false, type: "linkedin" }},
+                    {{ completed: false, type: "email" }},
+                    {{ completed: false, type: "call" }},
+                    {{ completed: false, type: "meeting" }},
+                    {{ completed: false, type: "chat" }},
+                    {{ completed: false, type: "note" }},
+                    {{ completed: false, type: "other" }}
+                ];
+            }}
+        }}
 
         let onlyShowPrioritized = false;
 
@@ -5605,7 +5716,13 @@ html_content = f"""<!DOCTYPE html>
 
         // Extra pool for sellers added at runtime
 
-        var _extraSellerPool = [];
+        let _extraSellerPool = JSON.parse(localStorage.getItem("sap_extra_sellers")) || [];
+
+        function saveExtraSellers() {{
+            try {{
+                localStorage.setItem("sap_extra_sellers", JSON.stringify(_extraSellerPool));
+            }} catch(e) {{ console.warn("Failed to save extra sellers:", e); }}
+        }}
 
         // Return deduplicated, normalised, sorted seller list
 
@@ -5756,6 +5873,12 @@ html_content = f"""<!DOCTYPE html>
                 }}
 
                 _extraSellerPool.push(trimmed);
+                saveExtraSellers();
+
+                const pat = localStorage.getItem(GH_KEY_PREFIX + "pat");
+                if (pat && pat.length > 5) {{
+                    syncEditsToGitHubBackground();
+                }}
 
             }}
 
@@ -5775,7 +5898,15 @@ html_content = f"""<!DOCTYPE html>
 
             const trimmed = name.trim();
 
-            if (!_extraSellerPool.includes(trimmed)) _extraSellerPool.push(trimmed);
+            if (!_extraSellerPool.includes(trimmed)) {{
+                _extraSellerPool.push(trimmed);
+                saveExtraSellers();
+
+                const pat = localStorage.getItem(GH_KEY_PREFIX + "pat");
+                if (pat && pat.length > 5) {{
+                    syncEditsToGitHubBackground();
+                }}
+            }}
 
             populateSellerDropdowns(trimmed);
 
@@ -5935,6 +6066,54 @@ html_content = f"""<!DOCTYPE html>
 
             document.getElementById("edit-products").value = products === "-" ? "" : products;
 
+            // Find matching contact object to load fields
+            const lowerName = currentContactName.toLowerCase();
+            let contact = callListData.find(c => c.name.toLowerCase() === lowerName);
+            if (!contact) {{
+                function findContactInTree(node) {{
+                    if (!node) return null;
+                    if (node.name.toLowerCase() === lowerName) return node;
+                    if (node.children) {{
+                        for (let child of node.children) {{
+                            const found = findContactInTree(child);
+                            if (found) return found;
+                        }}
+                    }}
+                    return null;
+                }}
+                contact = findContactInTree(orgData);
+            }}
+
+            if (contact) {{
+                ensureContactFields(contact);
+                document.getElementById("edit-email").value = contact.email || "";
+                document.getElementById("edit-linkedin").value = contact.linkedinUrl || "";
+                document.getElementById("edit-isc-link").value = contact.iscLink || "";
+                document.getElementById("edit-last-contacted").value = contact.lastTimeContacted || "";
+
+                // Render Edit steps sequence with checkboxes and channel dropdown selectors
+                const editStepsContainer = document.getElementById("edit-steps-container");
+                editStepsContainer.innerHTML = "";
+                contact.steps.forEach((step, idx) => {{
+                    const row = document.createElement("div");
+                    row.style.cssText = "display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 4px;";
+                    
+                    let optionsHtml = "";
+                    Object.entries(CHANNEL_EMOJIS).forEach(([type, emoji]) => {{
+                        optionsHtml += `<option value="${{type}}" \${{step.type === type ? "selected" : ""}}>\${{emoji}} \${{type.charAt(0).toUpperCase() + type.slice(1)}}</option>`;
+                    }});
+                    
+                    row.innerHTML = `
+                        <input type="checkbox" \${{step.completed ? "checked" : ""}} id="edit-step-chk-\${{idx}}" style="cursor: pointer; width: 16px; height: 16px;">
+                        <span style="font-weight: 600; min-width: 50px;">Step \${{idx + 1}}:</span>
+                        <select id="edit-step-type-\${{idx}}" class="form-input" style="height: 32px; font-size: 12.5px; padding: 2px 6px; flex: 1;">
+                            \${{optionsHtml}}
+                        </select>
+                    `;
+                    editStepsContainer.appendChild(row);
+                }});
+            }}
+
             // Set schedule dropdown
 
             const schedSel = document.getElementById("edit-schedule");
@@ -6053,13 +6232,29 @@ html_content = f"""<!DOCTYPE html>
 
             }}
 
+            const newEmail = document.getElementById("edit-email").value.trim();
+            const newLinkedin = document.getElementById("edit-linkedin").value.trim();
+            const newIscLink = document.getElementById("edit-isc-link").value.trim();
+            const newLastContacted = document.getElementById("edit-last-contacted").value;
+
+            const newSteps = [];
+            for (let i = 0; i < 7; i++) {{
+                const completed = document.getElementById(`edit-step-chk-${{i}}`).checked;
+                const type = document.getElementById(`edit-step-type-${{i}}`).value;
+                newSteps.push({{ completed, type }});
+            }}
+
             // Update orgData tree
 
             updateNodeInTree(orgData, savedName, {{
 
                 title: newTitle, priority: newPriority, owner: newOwner,
 
-                schedule: newSchedule, notes: newNotes, products: newProducts
+                schedule: newSchedule, notes: newNotes, products: newProducts,
+
+                email: newEmail, linkedinUrl: newLinkedin, iscLink: newIscLink,
+
+                lastTimeContacted: newLastContacted, steps: newSteps
 
             }});
 
@@ -6080,6 +6275,16 @@ html_content = f"""<!DOCTYPE html>
                 callListData[idx].notes    = newNotes;
 
                 callListData[idx].products = newProducts;
+
+                callListData[idx].email    = newEmail;
+
+                callListData[idx].linkedinUrl = newLinkedin;
+
+                callListData[idx].iscLink  = newIscLink;
+
+                callListData[idx].lastTimeContacted = newLastContacted;
+
+                callListData[idx].steps    = newSteps;
 
             }}
 
@@ -6109,19 +6314,7 @@ html_content = f"""<!DOCTYPE html>
 
             document.getElementById("view-mode-container").style.display = "block";
 
-            document.getElementById("det-name").innerText     = savedName;
-
-            document.getElementById("det-title").innerText    = newTitle;
-
-            document.getElementById("det-priority").innerText = newPriority;
-
-            document.getElementById("det-owner").innerText    = newOwner;
-
-            document.getElementById("det-schedule").innerText = newSchedule;
-
-            document.getElementById("det-notes").innerText    = newNotes;
-
-            document.getElementById("det-products").innerText = newProducts || "-";
+            showContactDetails(savedName);
 
             // Refresh all three tabs so they reflect the change immediately
 
@@ -6155,6 +6348,35 @@ html_content = f"""<!DOCTYPE html>
 
                  renderCallList();
 
+                 renderScheduleTab();
+
+                 // Autosave to localStorage so edits survive page close/reopen
+                 saveToLocalStorage();
+
+                 // If GitHub Sync credentials are saved, auto-sync back to GitHub!
+                 const pat = localStorage.getItem(GH_KEY_PREFIX + "pat");
+                 if (pat && pat.length > 5) {{
+                     syncEditsToGitHubBackground();
+                 }}
+
+             }}
+
+          }}
+
+         function deleteContactByName(name) {{
+
+             if (confirm(`Are you sure you want to delete ${{name}} from the org chart?`)) {{
+
+                 deleteNodeFromTree(orgData, name);
+
+                 callListData = callListData.filter(c => c.name.toLowerCase() !== name.toLowerCase());
+
+                 renderOrgTree();
+
+                 renderCallList();
+
+                 renderScheduleTab();
+
                  // Autosave to localStorage so edits survive page close/reopen
                  saveToLocalStorage();
 
@@ -6168,7 +6390,7 @@ html_content = f"""<!DOCTYPE html>
 
          }}
 
-        // Zoom and Pan State Variables
+         // Zoom and Pan State Variables
 
         let isDragging = false;
 
@@ -6367,7 +6589,17 @@ html_content = f"""<!DOCTYPE html>
 
                         schedule_week: c.schedule_week || 0,
 
-                        title:         c.title         || ""
+                        title:         c.title         || "",
+
+                        email:         c.email         || "",
+
+                        linkedinUrl:   c.linkedinUrl   || "",
+
+                        iscLink:       c.iscLink       || "",
+
+                        lastTimeContacted: c.lastTimeContacted || "",
+
+                        steps:         c.steps         || []
 
                     }};
 
@@ -6383,7 +6615,12 @@ html_content = f"""<!DOCTYPE html>
                         notes:         node.notes         || "",
                         schedule:      node.schedule      || "",
                         schedule_week: node.schedule_week || 0,
-                        title:         node.title         || ""
+                        title:         node.title         || "",
+                        email:         node.email         || "",
+                        linkedinUrl:   node.linkedinUrl   || "",
+                        iscLink:       node.iscLink       || "",
+                        lastTimeContacted: node.lastTimeContacted || "",
+                        steps:         node.steps         || []
                     }};
                     if (node.children) {{
                         node.children.forEach(c => saveTreeNodes(c));
@@ -6444,6 +6681,16 @@ html_content = f"""<!DOCTYPE html>
 
                         if (e.title)         node.title         = e.title;
 
+                        if (e.email !== undefined) node.email = e.email;
+
+                        if (e.linkedinUrl !== undefined) node.linkedinUrl = e.linkedinUrl;
+
+                        if (e.iscLink !== undefined) node.iscLink = e.iscLink;
+
+                        if (e.lastTimeContacted !== undefined) node.lastTimeContacted = e.lastTimeContacted;
+
+                        if (e.steps !== undefined) node.steps = e.steps;
+
                     }}
 
                     if (node.children) node.children.forEach(c => applyToTree(c));
@@ -6476,6 +6723,16 @@ html_content = f"""<!DOCTYPE html>
 
                         if (e.title)         c.title         = e.title;
 
+                        if (e.email !== undefined) c.email = e.email;
+
+                        if (e.linkedinUrl !== undefined) c.linkedinUrl = e.linkedinUrl;
+
+                        if (e.iscLink !== undefined) c.iscLink = e.iscLink;
+
+                        if (e.lastTimeContacted !== undefined) c.lastTimeContacted = e.lastTimeContacted;
+
+                        if (e.steps !== undefined) c.steps = e.steps;
+
                     }}
 
                 }});
@@ -6502,6 +6759,12 @@ html_content = f"""<!DOCTYPE html>
 
             updateTransform();
 
+            // Load and restore active tab on refresh
+            const savedTab = localStorage.getItem("sap_active_tab");
+            if (savedTab) {{
+                switchTab(savedTab);
+            }}
+
         }});
 
         function switchTab(tabId) {{
@@ -6512,7 +6775,16 @@ html_content = f"""<!DOCTYPE html>
 
             document.getElementById(tabId).classList.add("active");
 
-            event.target.classList.add("active");
+            // Find tab button by searching for button containing tabId in its onclick attribute
+            const tabBtn = document.querySelector(`button[onclick*="${{tabId}}"]`);
+            if (tabBtn) {{
+                tabBtn.classList.add("active");
+            }} else if (typeof event !== "undefined" && event.target) {{
+                event.target.classList.add("active");
+            }}
+
+            // Save active tab to localStorage
+            localStorage.setItem("sap_active_tab", tabId);
 
             if (tabId === "call-list-tab") {{
 
@@ -7177,6 +7449,14 @@ html_content = f"""<!DOCTYPE html>
 
                 if (viewFilter === "overdue") return w === 0 && (c.schedule || "").toLowerCase().includes("overdue");
 
+                if (viewFilter === "late") {{
+                    const s = c.schedule || "";
+                    if (s === "N/A" || !s) return false;
+                    const contacted = c.lastTimeContacted && c.lastTimeContacted !== "" && c.lastTimeContacted.toLowerCase() !== "never";
+                    if (contacted) return false;
+                    return w >= 0 && w <= 1;
+                }}
+
                 return true;
 
             }});
@@ -7309,6 +7589,8 @@ html_content = f"""<!DOCTYPE html>
 
                     <th style="width:80px">Deadline</th>
 
+                    <th style="width:60px">Action</th>
+
                 </tr></thead>`;
 
                 const tbody = document.createElement("tbody");
@@ -7352,6 +7634,8 @@ html_content = f"""<!DOCTYPE html>
                         <td><div class="col-notes">${{c.notes||""}}</div></td>
 
                         <td style="text-align:center">${{deadlineCell}}</td>
+
+                        <td style="text-align:center" onclick="event.stopPropagation()"><button class="btn" onclick="deleteContactByName(${{JSON.stringify(c.name)}})" style="padding: 2px 6px; background-color: #fee2e2; color: #b91c1c; border-color: #fca5a5; font-size: 11px; cursor: pointer;" title="Delete Contact">🗑️</button></td>
 
                     `;
 
@@ -8036,6 +8320,8 @@ html_content = f"""<!DOCTYPE html>
 
             if (contact) {{
 
+                ensureContactFields(contact);
+
                 document.getElementById("det-name").innerText = contact.name;
 
                 document.getElementById("det-title").innerText = contact.title;
@@ -8051,6 +8337,70 @@ html_content = f"""<!DOCTYPE html>
                 document.getElementById("det-notes").innerText = contact.notes;
 
                 document.getElementById("det-schedule").innerText = contact.schedule;
+
+                // Render Email
+                const emailEl = document.getElementById("det-email");
+                if (contact.email) {{
+                    emailEl.innerHTML = `<a href="mailto:${{contact.email}}" style="color: #2563eb; text-decoration: underline;">${{contact.email}}</a>`;
+                }} else {{
+                    emailEl.innerText = "-";
+                }}
+
+                // Render LinkedIn Profile
+                const linkedinEl = document.getElementById("det-linkedin");
+                if (contact.linkedinUrl) {{
+                    linkedinEl.innerHTML = `<a href="${{contact.linkedinUrl}}" target="_blank" style="color: #2563eb; text-decoration: underline;">LinkedIn Profile ↗</a>`;
+                }} else {{
+                    linkedinEl.innerText = "-";
+                }}
+
+                // Render ISC Link
+                const iscEl = document.getElementById("det-isc-link");
+                if (contact.iscLink) {{
+                    iscEl.innerHTML = `<a href="${{contact.iscLink}}" target="_blank" style="color: #2563eb; text-decoration: underline;">CSM Platform ↗</a>`;
+                }} else {{
+                    iscEl.innerText = "-";
+                }}
+
+                // Render Last Time Contacted
+                document.getElementById("det-last-contacted").innerText = contact.lastTimeContacted || "Never";
+
+                // Render steps sequence
+                const stepsContainer = document.getElementById("det-steps-container");
+                stepsContainer.innerHTML = "";
+                contact.steps.forEach((step, idx) => {{
+                    const row = document.createElement("div");
+                    row.style.cssText = "display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-color);";
+                    
+                    const emoji = CHANNEL_EMOJIS[step.type] || "🚀";
+                    const label = step.type.charAt(0).toUpperCase() + step.type.slice(1);
+                    
+                    row.innerHTML = `
+                        <input type="checkbox" \${{step.completed ? "checked" : ""}} style="cursor: pointer; width: 15px; height: 15px;" id="view-step-chk-\${{idx}}">
+                        <span style="font-size: 14px;">\${{emoji}}</span>
+                        <span style="\${{step.completed ? "text-decoration: line-through; color: var(--muted-color);" : ""}}">Step \${{idx + 1}}: \${{label}}</span>
+                    `;
+                    
+                    row.querySelector("input").addEventListener("change", (e) => {{
+                        step.completed = e.target.checked;
+                        
+                        updateNodeInTree(orgData, contact.name, {{ steps: contact.steps }});
+                        const cIdx = callListData.findIndex(c => c.name.toLowerCase() === contact.name.toLowerCase());
+                        if (cIdx !== -1) {{
+                            callListData[cIdx].steps = contact.steps;
+                        }}
+                        
+                        showContactDetails(contact.name);
+                        saveToLocalStorage();
+                        
+                        const pat = localStorage.getItem(GH_KEY_PREFIX + "pat");
+                        if (pat && pat.length > 5) {{
+                            syncEditsToGitHubBackground();
+                        }}
+                    }});
+                    
+                    stepsContainer.appendChild(row);
+                }});
 
                 const verEl = document.getElementById("det-verification");
 
@@ -8222,6 +8572,13 @@ html_content = f"""<!DOCTYPE html>
                     updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + String.fromCharCode(10));
                 }}
 
+                // Replace _extraSellerPool line
+                const sellerPoolRegex = /let _extraSellerPool = JSON\.parse\(localStorage\.getItem\(['"]sap_extra_sellers['"]\)\) \|\| \[.*\];/;
+                const newSellerPoolLine = "let _extraSellerPool = JSON.parse(localStorage.getItem('sap_extra_sellers')) || " + JSON.stringify(_extraSellerPool) + ";";
+                if (sellerPoolRegex.test(updatedHTML)) {{
+                    updatedHTML = updatedHTML.replace(sellerPoolRegex, newSellerPoolLine);
+                }}
+
                 statusEl.innerHTML = '<span style="color:#2563eb; font-weight:700;">📤 Committing and pushing to GitHub...</span>';
 
                 // UTF-8 base64 encoding helper
@@ -8358,6 +8715,13 @@ html_content = f"""<!DOCTYPE html>
                 }} else {{
                     const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*/;
                     updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + String.fromCharCode(10));
+                }}
+
+                // Replace _extraSellerPool line
+                const sellerPoolRegex = /let _extraSellerPool = JSON\.parse\(localStorage\.getItem\(['"]sap_extra_sellers['"]\)\) \|\| \[.*\];/;
+                const newSellerPoolLine = "let _extraSellerPool = JSON.parse(localStorage.getItem('sap_extra_sellers')) || " + JSON.stringify(_extraSellerPool) + ";";
+                if (sellerPoolRegex.test(updatedHTML)) {{
+                    updatedHTML = updatedHTML.replace(sellerPoolRegex, newSellerPoolLine);
                 }}
 
                 const encodedContent = btoa(unescape(encodeURIComponent(updatedHTML)));
