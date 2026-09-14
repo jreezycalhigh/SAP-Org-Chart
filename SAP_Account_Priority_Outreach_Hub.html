@@ -2720,14 +2720,14 @@
                     
                     let optionsHtml = "";
                     Object.entries(CHANNEL_EMOJIS).forEach(([type, emoji]) => {
-                        optionsHtml += `<option value="${type}" \${step.type === type ? "selected" : ""}>\${emoji} \${type.charAt(0).toUpperCase() + type.slice(1)}</option>`;
+                        optionsHtml += `<option value="${type}" ${step.type === type ? "selected" : ""}>${emoji} ${type.charAt(0).toUpperCase() + type.slice(1)}</option>`;
                     });
                     
                     row.innerHTML = `
-                        <input type="checkbox" \${step.completed ? "checked" : ""} id="edit-step-chk-\${idx}" style="cursor: pointer; width: 16px; height: 16px;">
-                        <span style="font-weight: 600; min-width: 50px;">Step \${idx + 1}:</span>
-                        <select id="edit-step-type-\${idx}" class="form-input" style="height: 32px; font-size: 12.5px; padding: 2px 6px; flex: 1;">
-                            \${optionsHtml}
+                        <input type="checkbox" ${step.completed ? "checked" : ""} id="edit-step-chk-${idx}" style="cursor: pointer; width: 16px; height: 16px;">
+                        <span style="font-weight: 600; min-width: 50px;">Step ${idx + 1}:</span>
+                        <select id="edit-step-type-${idx}" class="form-input" style="height: 32px; font-size: 12.5px; padding: 2px 6px; flex: 1;">
+                            ${optionsHtml}
                         </select>
                     `;
                     editStepsContainer.appendChild(row);
@@ -4996,9 +4996,9 @@
                     const label = step.type.charAt(0).toUpperCase() + step.type.slice(1);
                     
                     row.innerHTML = `
-                        <input type="checkbox" \${step.completed ? "checked" : ""} style="cursor: pointer; width: 15px; height: 15px;" id="view-step-chk-\${idx}">
-                        <span style="font-size: 14px;">\${emoji}</span>
-                        <span style="\${step.completed ? "text-decoration: line-through; color: var(--muted-color);" : ""}">Step \${idx + 1}: \${label}</span>
+                        <input type="checkbox" ${step.completed ? "checked" : ""} style="cursor: pointer; width: 15px; height: 15px;" id="view-step-chk-${idx}">
+                        <span style="font-size: 14px;">${emoji}</span>
+                        <span style="${step.completed ? "text-decoration: line-through; color: var(--muted-color);" : ""}">Step ${idx + 1}: ${label}</span>
                     `;
                     
                     row.querySelector("input").addEventListener("change", (e) => {
