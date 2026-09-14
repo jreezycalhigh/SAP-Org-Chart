@@ -7411,7 +7411,7 @@ html_content = f"""<!DOCTYPE html>
 
                 if (s === "N/A") return -1;
 
-                if (s === "This Week" || s === "Overdue") return 0;
+                if (s === "This Week" || s === "Overdue" || s === "Week 1") return 0;
 
                 const m = s.match(/Week[ \t]+([0-9]+)/i);
 
