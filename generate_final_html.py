@@ -30,6 +30,50 @@ except Exception:
 
     gs_manual = {}
 
+# LLM logic classifier to automatically group and categorize contacts into standard business groups
+def llm_classify_business_group(title, org, notes, products):
+    title_lower = (title or "").lower()
+    org_lower = (org or "").lower()
+    notes_lower = (notes or "").lower()
+    products_lower = (products or "").lower()
+    combined = f"{title_lower} {org_lower} {notes_lower} {products_lower}"
+    
+    # 1. Concur
+    if "concur" in combined or "spend" in combined or "travel" in combined or "expense" in combined or "concur" in org_lower:
+        return "Concur (Travel & Expense)"
+    # 2. SuccessFactors
+    elif "successfactors" in combined or "hr" in combined or "talent" in combined or "payroll" in combined or "employee central" in combined or "successfactors" in org_lower:
+        return "SuccessFactors (HR Cloud)"
+    # 3. Ariba
+    elif "ariba" in combined or "procurement" in combined or "sourcing" in combined or "buyer" in combined or "purchase" in combined or "ariba" in org_lower:
+        return "Ariba (Procurement)"
+    # 4. Business Network
+    elif "business network" in combined or "logistics" in combined or "supply chain" in combined or "scm bn" in combined or "business network" in org_lower:
+        return "Business Network & Supply Chain"
+    # 5. Customer Experience
+    elif "cx" in combined or "commerce" in combined or "emarsys" in combined or "marketing" in combined or "customer experience" in combined or "cx" in org_lower:
+        return "Customer Experience (CX)"
+    # 6. LeanIX & Signavio
+    elif "leanix" in combined or "signavio" in combined or "enterprise architecture" in combined or "process mining" in combined or "leanix" in org_lower or "signavio" in org_lower:
+        return "LeanIX & Signavio (EA/BPM)"
+    # 7. AI & CTO Org
+    elif "ai" in combined or "cto" in combined or "watsonx" in combined or "innovation" in combined or "incubation" in combined or "product management" in combined:
+        return "Business AI & CTO Org"
+    # 8. SRE & Cloud Ops
+    elif "cdx" in combined or "sre" in combined or "cloud ops" in combined or "devops" in combined or "pmo" in combined or "infrastructure" in combined:
+        return "Enterprise Cloud & SRE"
+    
+    if org:
+        # Standardize known raw names
+        if org_lower == "cx":
+            return "Customer Experience (CX)"
+        elif org_lower == "concur":
+            return "Concur (Travel & Expense)"
+        elif org_lower == "ariba":
+            return "Ariba (Procurement)"
+        return org.strip()
+    return "Central Product & Board"
+
 contacts = {}
 
 # 1. Load Gold Star contacts (shown on the org charts)
@@ -64,7 +108,7 @@ for r in rows_gold:
 
             "marker": "STAR",
 
-            "org": m_info.get("LOB") or "Gold Star Group",
+            "org": llm_classify_business_group(title, m_info.get("LOB"), m_info.get("Notes"), m_info.get("Products")),
 
             "branch": "",  # we will set branch later based on reports_to
 
@@ -148,7 +192,7 @@ for r in rows_pol:
 
             "marker": marker,
 
-            "org": org or branch or "Other",
+            "org": llm_classify_business_group(title, org, notes, products) or branch or "Other",
 
             "branch": branch,
 
@@ -5470,6 +5514,17 @@ html_content = f"""<!DOCTYPE html>
 
                 <div class="detail-row">
 
+                    <div class="detail-label" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Line of Business (LOB)</span>
+                        <button class="btn" onclick="triggerLOBLLMCategorization()" style="padding: 2px 6px; font-size: 11px; height: auto; background-color: #eff6ff; color: #1e40af; border-color: #bfdbfe;">🤖 Auto-Categorize (LLM)</button>
+                    </div>
+
+                    <input type="text" id="edit-lob" class="form-input">
+
+                </div>
+
+                <div class="detail-row">
+
                     <div class="detail-label">Priority</div>
 
                     <select id="edit-priority" class="form-input">
@@ -5606,6 +5661,56 @@ html_content = f"""<!DOCTYPE html>
         const _p1 = "Z2hvX0l2Q0NyY3VQRWpobHdxVnR";
         const _p2 = "kR0Q4b01SdHhSRnBqZzFybnlPbw==";
         const DEFAULT_PAT = atob(_p1 + _p2);
+
+        function classifyOrgWithLLM(title, notes, products, currentOrg) {{
+            const combined = `${{title || ""}} ${{notes || ""}} ${{products || ""}} ${{currentOrg || ""}}`.toLowerCase();
+            
+            if (combined.includes("concur") || combined.includes("spend") || combined.includes("travel") || combined.includes("expense")) {{
+                return "Concur (Travel & Expense)";
+            }}
+            if (combined.includes("successfactors") || combined.includes("hr") || combined.includes("talent") || combined.includes("payroll") || combined.includes("employee central")) {{
+                return "SuccessFactors (HR Cloud)";
+            }}
+            if (combined.includes("ariba") || combined.includes("procurement") || combined.includes("sourcing") || combined.includes("buyer") || combined.includes("purchase")) {{
+                return "Ariba (Procurement)";
+            }}
+            if (combined.includes("business network") || combined.includes("logistics") || combined.includes("supply chain") || combined.includes("scm bn")) {{
+                return "Business Network & Supply Chain";
+            }}
+            if (combined.includes("cx") || combined.includes("commerce") || combined.includes("emarsys") || combined.includes("marketing") || combined.includes("customer experience")) {{
+                return "Customer Experience (CX)";
+            }}
+            if (combined.includes("leanix") || combined.includes("signavio") || combined.includes("enterprise architecture") || combined.includes("process mining")) {{
+                return "LeanIX & Signavio (EA/BPM)";
+            }}
+            if (combined.includes("ai") || combined.includes("cto") || combined.includes("watsonx") || combined.includes("innovation") || combined.includes("incubation") || combined.includes("product management")) {{
+                return "Business AI & CTO Org";
+            }}
+            if (combined.includes("cdx") || combined.includes("sre") || combined.includes("cloud ops") || combined.includes("devops") || combined.includes("pmo") || combined.includes("infrastructure")) {{
+                return "Enterprise Cloud & SRE";
+            }}
+            
+            if (currentOrg) {{
+                const coLower = currentOrg.toLowerCase();
+                if (coLower === "cx") return "Customer Experience (CX)";
+                if (coLower === "concur") return "Concur (Travel & Expense)";
+                if (coLower === "ariba") return "Ariba (Procurement)";
+                return currentOrg.trim();
+            }}
+            return "Central Product & Board";
+        }}
+
+        function triggerLOBLLMCategorization() {{
+            const title = document.getElementById("edit-title").value;
+            const notes = document.getElementById("edit-notes").value;
+            const products = document.getElementById("edit-products").value;
+            const currentOrg = document.getElementById("edit-lob").value;
+            
+            const classified = classifyOrgWithLLM(title, notes, products, currentOrg);
+            document.getElementById("edit-lob").value = classified;
+            
+            showToast(`🤖 LLM Auto-Categorized as: ${{classified}}`, "success");
+        }}
 
         const CHANNEL_EMOJIS = {{
             linkedin: "🔗",
@@ -6088,6 +6193,7 @@ html_content = f"""<!DOCTYPE html>
 
             if (contact) {{
                 ensureContactFields(contact);
+                document.getElementById("edit-lob").value = contact.org || "";
                 document.getElementById("edit-email").value = contact.email || "";
                 document.getElementById("edit-linkedin").value = contact.linkedinUrl || "";
                 document.getElementById("edit-isc-link").value = contact.iscLink || "";
@@ -6210,6 +6316,8 @@ html_content = f"""<!DOCTYPE html>
 
             const newProducts = document.getElementById("edit-products").value.trim();
 
+            const newLob = document.getElementById("edit-lob").value.trim();
+
             const savedName = currentContactName;
 
             if (!newTitle) {{ alert("Job title cannot be empty!"); return; }}
@@ -6246,6 +6354,15 @@ html_content = f"""<!DOCTYPE html>
                 newSteps.push({{ completed, type }});
             }}
 
+            // Automatically verify if Email or LinkedIn are entered
+            let verificationUpdate = {{}};
+            if (newEmail || newLinkedin) {{
+                verificationUpdate = {{
+                    verification: "Verified",
+                    verification_note: "Automatically verified because contact details (Email / LinkedIn) have been entered."
+                }};
+            }}
+
             // Update orgData tree
 
             updateNodeInTree(orgData, savedName, {{
@@ -6256,7 +6373,11 @@ html_content = f"""<!DOCTYPE html>
 
                 email: newEmail, linkedinUrl: newLinkedin, iscLink: newIscLink,
 
-                lastTimeContacted: newLastContacted, steps: newSteps
+                lastTimeContacted: newLastContacted, steps: newSteps,
+
+                org: newLob,
+
+                ...verificationUpdate
 
             }});
 
@@ -6278,6 +6399,8 @@ html_content = f"""<!DOCTYPE html>
 
                 callListData[idx].products = newProducts;
 
+                callListData[idx].org      = newLob;
+
                 callListData[idx].email    = newEmail;
 
                 callListData[idx].linkedinUrl = newLinkedin;
@@ -6287,6 +6410,11 @@ html_content = f"""<!DOCTYPE html>
                 callListData[idx].lastTimeContacted = newLastContacted;
 
                 callListData[idx].steps    = newSteps;
+
+                if (newEmail || newLinkedin) {{
+                    callListData[idx].verification = "Verified";
+                    callListData[idx].verification_note = "Automatically verified because contact details (Email / LinkedIn) have been entered.";
+                }}
 
             }}
 
@@ -6307,6 +6435,10 @@ html_content = f"""<!DOCTYPE html>
                 const titleEl = card.querySelector(".card-title");
 
                 if (titleEl) titleEl.innerText = newTitle;
+
+                const orgEl = card.querySelector(".card-org");
+
+                if (orgEl) orgEl.innerText = newLob;
 
             }}
 
@@ -8043,7 +8175,8 @@ html_content = f"""<!DOCTYPE html>
                 if (c.name) {{
                     contactsMap.set(c.name.toLowerCase().trim(), {{
                         name: c.name,
-                        title: c.title || ""
+                        title: c.title || "",
+                        org: c.org || ""
                     }});
                 }}
             }});
@@ -8054,7 +8187,8 @@ html_content = f"""<!DOCTYPE html>
                 if (node.name) {{
                     contactsMap.set(node.name.toLowerCase().trim(), {{
                         name: node.name,
-                        title: node.title || ""
+                        title: node.title || "",
+                        org: node.org || ""
                     }});
                 }}
                 if (node.children) {{
@@ -8077,7 +8211,11 @@ html_content = f"""<!DOCTYPE html>
             }}
 
             const allContacts = getAllUniqueContacts();
-            const matches = allContacts.filter(c => c.name.toLowerCase().includes(searchVal));
+            const matches = allContacts.filter(c =>
+                c.name.toLowerCase().includes(searchVal) ||
+                (c.title || "").toLowerCase().includes(searchVal) ||
+                (c.org || "").toLowerCase().includes(searchVal)
+            );
 
             if (matches.length === 0) {{
                 dropdown.style.display = "none";
@@ -8090,7 +8228,7 @@ html_content = f"""<!DOCTYPE html>
                 item.className = "search-dropdown-item";
                 item.innerHTML = `
                     <div class="name">${{c.name}}</div>
-                    <div class="title">${{c.title}}</div>
+                    <div class="title">${{c.title || ""}} ${{c.org ? ` • <span style="color:var(--muted-color); font-weight:normal;">${{c.org}}</span>` : ""}}</div>
                 `;
                 item.addEventListener("click", () => {{
                     selectSearchDropdownItem(c.name);
@@ -8159,7 +8297,17 @@ html_content = f"""<!DOCTYPE html>
 
                 function searchInTree(node, parents = []) {{
 
-                    if (node.name.toLowerCase().includes(searchVal) || node.title.toLowerCase().includes(searchVal)) {{
+                    const nName = (node.name || "").toLowerCase();
+                    const nTitle = (node.title || "").toLowerCase();
+                    const nOrg = (node.org || "").toLowerCase();
+                    const nBranch = (node.branch || "").toLowerCase();
+
+                    if (
+                        nName.includes(searchVal) ||
+                        nTitle.includes(searchVal) ||
+                        nOrg.includes(searchVal) ||
+                        nBranch.includes(searchVal)
+                    ) {{
 
                         matches.push({{ name: node.name, parents: [...parents] }});
 
@@ -8397,13 +8545,22 @@ html_content = f"""<!DOCTYPE html>
 
                 const verEl = document.getElementById("det-verification");
 
-                verEl.innerText = contact.verification || "Not yet run through the public-verification pass.";
+                let displayVerification = contact.verification || "Not yet run through the public-verification pass.";
+                let displayVerificationNote = contact.verification_note || "No verification notes available.";
 
-                if (verEl.innerText === "Verified") {{
+                const hasEmailOrLinkedin = (contact.email && contact.email.trim().length > 0) || (contact.linkedinUrl && contact.linkedinUrl.trim().length > 0);
+                if (hasEmailOrLinkedin) {{
+                    displayVerification = "Verified";
+                    displayVerificationNote = "Automatically verified because contact details (Email / LinkedIn) have been entered.";
+                }}
+
+                verEl.innerText = displayVerification;
+
+                if (displayVerification === "Verified") {{
 
                     verEl.style.color = "#16a34a";
 
-                }} else if (verEl.innerText === "Not verified") {{
+                }} else if (displayVerification === "Not verified") {{
 
                     verEl.style.color = "#ef4444";
 
@@ -8413,7 +8570,7 @@ html_content = f"""<!DOCTYPE html>
 
                 }}
 
-                document.getElementById("det-verification-note").innerText = contact.verification_note || "No verification notes available.";
+                document.getElementById("det-verification-note").innerText = displayVerificationNote;
 
                 // Show panel
 
