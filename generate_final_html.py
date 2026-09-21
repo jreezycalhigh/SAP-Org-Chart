@@ -4092,37 +4092,35 @@ html_content = f"""<!DOCTYPE html>
 
         /* Custom color styles for each primary LOB group */
 
-        .lob-group-box.lob-Ariba {{ border-color: #3b82f6; background-color: rgba(59, 130, 246, 0.03); }}
+        .lob-group-box.lob-ConcurTravelExpense {{ border-color: #14b8a6; background-color: rgba(20, 184, 166, 0.03); }}
+        .lob-group-box.lob-ConcurTravelExpense .lob-group-box-title {{ border-color: #14b8a6; color: #0f766e; }}
 
-        .lob-group-box.lob-Ariba .lob-group-box-title {{ border-color: #3b82f6; color: #1d4ed8; }}
+        .lob-group-box.lob-SuccessFactorsHRCloud {{ border-color: #8b5cf6; background-color: rgba(139, 92, 246, 0.03); }}
+        .lob-group-box.lob-SuccessFactorsHRCloud .lob-group-box-title {{ border-color: #8b5cf6; color: #6d28d9; }}
 
-        .lob-group-box.lob-NS2 {{ border-color: #10b981; background-color: rgba(16, 185, 129, 0.03); }}
+        .lob-group-box.lob-AribaProcurement {{ border-color: #3b82f6; background-color: rgba(59, 130, 246, 0.03); }}
+        .lob-group-box.lob-AribaProcurement .lob-group-box-title {{ border-color: #3b82f6; color: #1d4ed8; }}
 
-        .lob-group-box.lob-NS2 .lob-group-box-title {{ border-color: #10b981; color: #047857; }}
+        .lob-group-box.lob-BusinessNetworkSupplyChain {{ border-color: #6366f1; background-color: rgba(99, 102, 241, 0.03); }}
+        .lob-group-box.lob-BusinessNetworkSupplyChain .lob-group-box-title {{ border-color: #6366f1; color: #4338ca; }}
 
-        .lob-group-box.lob-SuccessFactors {{ border-color: #8b5cf6; background-color: rgba(139, 92, 246, 0.03); }}
+        .lob-group-box.lob-CustomerExperienceCX {{ border-color: #f97316; background-color: rgba(249, 115, 22, 0.03); }}
+        .lob-group-box.lob-CustomerExperienceCX .lob-group-box-title {{ border-color: #f97316; color: #c2410c; }}
 
-        .lob-group-box.lob-SuccessFactors .lob-group-box-title {{ border-color: #8b5cf6; color: #6d28d9; }}
+        .lob-group-box.lob-LeanIXSignavioEABPM {{ border-color: #f43f5e; background-color: rgba(244, 63, 94, 0.03); }}
+        .lob-group-box.lob-LeanIXSignavioEABPM .lob-group-box-title {{ border-color: #f43f5e; color: #be123c; }}
 
-        .lob-group-box.lob-Concur {{ border-color: #14b8a6; background-color: rgba(20, 184, 166, 0.03); }}
+        .lob-group-box.lob-NS2USPublicSector {{ border-color: #10b981; background-color: rgba(16, 185, 129, 0.03); }}
+        .lob-group-box.lob-NS2USPublicSector .lob-group-box-title {{ border-color: #10b981; color: #047857; }}
 
-        .lob-group-box.lob-Concur .lob-group-box-title {{ border-color: #14b8a6; color: #0f766e; }}
+        .lob-group-box.lob-SovereignCloud {{ border-color: #0284c7; background-color: rgba(2, 132, 199, 0.03); }}
+        .lob-group-box.lob-SovereignCloud .lob-group-box-title {{ border-color: #0284c7; color: #0369a1; }}
 
-        .lob-group-box.lob-CX {{ border-color: #f97316; background-color: rgba(249, 115, 22, 0.03); }}
+        .lob-group-box.lob-BusinessAICTOOrg {{ border-color: #06b6d4; background-color: rgba(6, 182, 212, 0.03); }}
+        .lob-group-box.lob-BusinessAICTOOrg .lob-group-box-title {{ border-color: #06b6d4; color: #0891b2; }}
 
-        .lob-group-box.lob-CX .lob-group-box-title {{ border-color: #f97316; color: #c2410c; }}
-
-        .lob-group-box.lob-CDX {{ border-color: #ec4899; background-color: rgba(236, 72, 153, 0.03); }}
-
-        .lob-group-box.lob-CDX .lob-group-box-title {{ border-color: #ec4899; color: #be185d; }}
-
-        .lob-group-box.lob-SovereignCloud {{ border-color: #ef4444; background-color: rgba(239, 68, 68, 0.03); }}
-
-        .lob-group-box.lob-SovereignCloud .lob-group-box-title {{ border-color: #ef4444; color: #b91c1c; }}
-
-        .lob-group-box.lob-BusinessNetwork {{ border-color: #6366f1; background-color: rgba(99, 102, 241, 0.03); }}
-
-        .lob-group-box.lob-BusinessNetwork .lob-group-box-title {{ border-color: #6366f1; color: #4338ca; }}
+        .lob-group-box.lob-EnterpriseCloudCDX {{ border-color: #ec4899; background-color: rgba(236, 72, 153, 0.03); }}
+        .lob-group-box.lob-EnterpriseCloudCDX .lob-group-box-title {{ border-color: #ec4899; color: #be185d; }}
 
         /* Override to fallback to single nowrap horizontal row if any child is expanded */
 
@@ -7057,17 +7055,30 @@ html_content = f"""<!DOCTYPE html>
 
                 let currentLOB = null;
 
-                const primaryLOBs = ["Ariba", "NS2", "CDX", "SuccessFactors", "Concur", "CX", "Sovereign Cloud", "Business Network"];
+                const primaryLOBs = [
+                    "Concur (Travel & Expense)",
+                    "SuccessFactors (HR Cloud)",
+                    "Ariba (Procurement)",
+                    "Business Network & Supply Chain",
+                    "Customer Experience (CX)",
+                    "LeanIX & Signavio (EA/BPM)",
+                    "NS2 (US Public Sector)",
+                    "Sovereign Cloud",
+                    "Business AI & CTO Org",
+                    "Enterprise Cloud & CDX"
+                ];
 
                 const lobDisplayNames = {{
-                    "Ariba":            "Ariba — Procurement & Supply Chain",
-                    "NS2":              "NS2 — US Public Sector",
-                    "CDX":              "CDX — Cloud DevOps & Operations",
-                    "SuccessFactors":   "SuccessFactors — HCM Suite",
-                    "Concur":           "Concur — Travel & Expense",
-                    "CX":               "Cloud Products & Customer Experience",
-                    "Sovereign Cloud":  "Sovereign Cloud & Infrastructure",
-                    "Business Network": "Business Network"
+                    "Concur (Travel & Expense)":       "Concur — Travel & Expense",
+                    "SuccessFactors (HR Cloud)":       "SuccessFactors — HCM Suite",
+                    "Ariba (Procurement)":             "Ariba — Procurement",
+                    "Business Network & Supply Chain": "Business Network & Supply Chain",
+                    "Customer Experience (CX)":        "Customer Experience (CX)",
+                    "LeanIX & Signavio (EA/BPM)":      "LeanIX & Signavio (EA/BPM)",
+                    "NS2 (US Public Sector)":          "NS2 — US Public Sector",
+                    "Sovereign Cloud":                 "Sovereign Cloud & Infrastructure",
+                    "Business AI & CTO Org":           "Business AI & CTO Org",
+                    "Enterprise Cloud & CDX":          "Enterprise Cloud & CDX"
                 }};
 
                 function renderLOBGroup(lobName, items) {{
@@ -7120,7 +7131,7 @@ html_content = f"""<!DOCTYPE html>
 
                     for (let p of primaryLOBs) {{
 
-                        if (childLOB.toLowerCase().includes(p.toLowerCase())) {{
+                        if (childLOB.toLowerCase() === p.toLowerCase() || childLOB.toLowerCase().includes(p.toLowerCase())) {{
 
                             matchedLOB = p;
 
