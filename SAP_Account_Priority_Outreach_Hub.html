@@ -4107,9 +4107,14 @@
 
             });
 
-            // Determine current week number relative to today
+            // Determine current week number relative to START_DATE (Sunday Sept 20, 2026)
+            const START_DATE = new Date("2026-09-20");
 
             const nowWS = getWeekStart(new Date());
+
+            const startWS = getWeekStart(START_DATE);
+
+            const currentWeekNum = Math.max(1, Math.floor(weeksBetween(startWS, nowWS)) + 1);
 
             const deadlineWS = getWeekStart(DEADLINE);
 
@@ -4121,9 +4126,11 @@
 
                 const s = c.schedule || "";
 
-                if (s === "N/A") return -1;
+                if (s === "N/A" || !s) return -1;
 
-                if (s === "This Week" || s === "Overdue" || s === "Week 1") return 0;
+                if (s === "Past Due" || s === "Overdue") return -2;
+
+                if (s === "This Week" || s === "Follow Up") return currentWeekNum;
 
                 const m = s.match(/Week[ 	]+([0-9]+)/i);
 
@@ -4137,9 +4144,9 @@
 
                 if (w < 0) return null;
 
-                const d = new Date(nowWS);
+                const d = new Date(startWS);
 
-                d.setDate(d.getDate() + (Math.max(0, w - 1)) * 7);
+                d.setDate(d.getDate() + (w - 1) * 7);
 
                 return d;
 
@@ -4149,24 +4156,32 @@
 
             let filtered = matched.filter(c => {
 
+                const s = c.schedule || "";
+
                 const w = getContactWeekNum(c);
+
+                const contacted = c.lastTimeContacted && c.lastTimeContacted !== "" && c.lastTimeContacted.toLowerCase() !== "never";
 
                 if (viewFilter === "all") return true;
 
-                if (viewFilter === "thisweek") return w === 0 || w === 1;
+                if (viewFilter === "thisweek") {
+                    const isPastDue = (w === -2) || (w >= 1 && w < currentWeekNum && !contacted);
+                    const isThisWeek = (w === currentWeekNum) || (s === "This Week") || (s === "Follow Up");
+                    return isPastDue || isThisWeek;
+                }
 
-                if (viewFilter === "next2") return w >= 0 && w <= 2;
+                if (viewFilter === "next2") {
+                    return (w >= currentWeekNum && w <= currentWeekNum + 1) || (s === "This Week") || (s === "Follow Up");
+                }
 
-                if (viewFilter === "next4") return w >= 0 && w <= 4;
+                if (viewFilter === "next4") {
+                    return (w >= currentWeekNum && w <= currentWeekNum + 3) || (s === "This Week") || (s === "Follow Up");
+                }
 
-                if (viewFilter === "overdue") return w === 0 && (c.schedule || "").toLowerCase().includes("overdue");
-
-                if (viewFilter === "late") {
-                    const s = c.schedule || "";
-                    if (s === "N/A" || !s) return false;
-                    const contacted = c.lastTimeContacted && c.lastTimeContacted !== "" && c.lastTimeContacted.toLowerCase() !== "never";
+                if (viewFilter === "overdue" || viewFilter === "late") {
+                    if (s === "N/A") return false;
                     if (contacted) return false;
-                    return w >= 0 && w <= 1;
+                    return (w === -2) || (w >= 1 && w <= currentWeekNum) || (s === "This Week") || (s === "Follow Up");
                 }
 
                 return true;
@@ -4183,7 +4198,7 @@
 
             }
 
-            // Sort by week number then priority
+            // Sort by group precedence first, then priority, then name
 
             const prioOrder = {"Relationship": 0, "High": 1, "Medium": 2, "Low": 3};
 
@@ -4191,13 +4206,38 @@
 
                 const wa = getContactWeekNum(a), wb = getContactWeekNum(b);
 
-                if (wa !== wb) return wa - wb;
+                const sa = a.schedule || "", sb = b.schedule || "";
 
-                return (prioOrder[a.priority] ?? 9) - (prioOrder[b.priority] ?? 9);
+                const contactedA = a.lastTimeContacted && a.lastTimeContacted !== "" && a.lastTimeContacted.toLowerCase() !== "never";
+
+                const contactedB = b.lastTimeContacted && b.lastTimeContacted !== "" && b.lastTimeContacted.toLowerCase() !== "never";
+
+                function getSortGroup(c, s, w, contacted) {
+                    if (s === "N/A") return 4;
+                    if (w === -2 || (w >= 1 && w < currentWeekNum && !contacted)) return 1;
+                    if (w === currentWeekNum || s === "This Week" || s === "Follow Up") return 2;
+                    return 3;
+                }
+
+                const groupA = getSortGroup(a, sa, wa, contactedA);
+
+                const groupB = getSortGroup(b, sb, wb, contactedB);
+
+                if (groupA !== groupB) return groupA - groupB;
+
+                if (groupA === 3 && wa !== wb) return wa - wb;
+
+                const pA = prioOrder[a.priority] ?? 9;
+
+                const pB = prioOrder[b.priority] ?? 9;
+
+                if (pA !== pB) return pA - pB;
+
+                return a.name.localeCompare(b.name);
 
             });
 
-            // Group by week label
+            // Group by section label
 
             const groups = {};
 
@@ -4205,37 +4245,53 @@
 
                 const w = getContactWeekNum(c);
 
+                const s = c.schedule || "";
+
+                const contacted = c.lastTimeContacted && c.lastTimeContacted !== "" && c.lastTimeContacted.toLowerCase() !== "never";
+
                 let label;
 
                 let dateLabel = "";
 
-                if (w < 0) {
+                if (s === "N/A") {
 
-                    label = "N/A - Relationship Contacts";
+                    label = "Relationship Contacts (N/A)";
 
-                } else if (w === 0 || c.schedule === "This Week") {
+                } else if (w === -2 || (w >= 1 && w < currentWeekNum && !contacted)) {
 
-                    label = " This Week";
+                    label = "🚨 Past Due — Action Required";
 
-                    dateLabel = nowWS.toLocaleDateString("en-US", {month:"short", day:"numeric"}) + " - " + new Date(nowWS.getTime()+6*86400000).toLocaleDateString("en-US", {month:"short", day:"numeric"});
+                    dateLabel = "Requires updating to current or future week";
+
+                } else if (w === currentWeekNum || s === "This Week" || s === "Follow Up") {
+
+                    label = "📅 This Week";
+
+                    const end = new Date(nowWS.getTime() + 6 * 86400000);
+
+                    dateLabel = nowWS.toLocaleDateString("en-US", {month:"short", day:"numeric"}) + " - " + end.toLocaleDateString("en-US", {month:"short", day:"numeric"});
 
                 } else {
 
                     const d = getContactDate(c);
 
-                    const end = d ? new Date(d.getTime()+6*86400000) : null;
+                    const end = d ? new Date(d.getTime() + 6 * 86400000) : null;
 
                     label = "Week " + w;
 
-                    if (d && d <= deadlineWS) {
+                    if (d) {
 
                         dateLabel = d.toLocaleDateString("en-US", {month:"short", day:"numeric"}) + " - " + (end ? end.toLocaleDateString("en-US", {month:"short", day:"numeric"}) : "");
 
-                        if (d > deadlineWS) label += "   Past Deadline";
+                        if (d <= deadlineWS) {
 
-                    } else if (d && d > deadlineWS) {
+                            if (d > deadlineWS) label += " — Past Deadline";
 
-                        label += "   Past Deadline";
+                        } else {
+
+                            label += " — Past Deadline";
+
+                        }
 
                     }
 
@@ -4249,27 +4305,25 @@
 
             // Render each group
 
-            const urgentStyle = "border-left: 3px solid #dc2626;";
-
-            const thisWeekStyle = "border-left: 3px solid #2563eb; background: #eff6ff;";
-
             Object.entries(groups).forEach(([label, group]) => {
 
-                const isThisWeek = label.startsWith("");
+                const isThisWeek = label.startsWith("📅");
 
-                const isPast = label.includes("  Past Deadline");
+                const isPastDue = label.startsWith("🚨");
 
-                const isNA = label.startsWith("N/A");
+                const isNA = label.startsWith("Relationship");
+
+                const isPast = label.includes("Past Deadline");
 
                 // Section header
 
                 const hdr = document.createElement("div");
 
-                hdr.style.cssText = `display:flex;align-items:baseline;gap:10px;margin:18px 0 6px;padding-bottom:6px;border-bottom:2px solid ${isThisWeek ? "#2563eb" : isPast ? "#dc2626" : isNA ? "#9ca3af" : "#e5e7eb"};`;
+                hdr.style.cssText = `display:flex;align-items:baseline;gap:10px;margin:18px 0 6px;padding-bottom:6px;border-bottom:2px solid ${isPastDue ? "#ef4444" : isThisWeek ? "#2563eb" : isPast ? "#dc2626" : isNA ? "#9ca3af" : "#e5e7eb"};`;
 
                 hdr.innerHTML = `
 
-                    <span style="font-size:15px;font-weight:700;color:${isThisWeek?"#1d4ed8":isPast?"#dc2626":isNA?"#9ca3af":"#1f2328"}">${label}</span>
+                    <span style="font-size:15px;font-weight:700;color:${isPastDue?"#ef4444":isThisWeek?"#1d4ed8":isPast?"#dc2626":isNA?"#9ca3af":"#1f2328"}">${label}</span>
 
                     ${group.dateLabel ? `<span style="font-size:12px;color:#57606a;">${group.dateLabel}</span>` : ""}
 
@@ -4319,19 +4373,35 @@
 
                     if (isThisWeek) tr.style.cssText += "border-left:3px solid #2563eb;";
 
+                    if (isPastDue) tr.style.cssText += "border-left:3px solid #ef4444;";
+
                     // Weeks until deadline
 
                     const cDate = getContactDate(c);
 
-                    const weeksUntil = cDate ? weeksBetween(nowWS, getWeekStart(cDate)) : null;
+                    const s = c.schedule || "";
 
-                    const deadlineCell = weeksUntil === null ? "N/A"
+                    let deadlineCell = "N/A";
 
-                        : weeksUntil === 0 ? '<span style="color:#dc2626;font-weight:700">This Week</span>'
+                    if (cDate) {
 
-                        : weeksUntil < 0 ? '<span style="color:#dc2626;font-weight:700">Overdue</span>'
+                        const weeksUntil = weeksBetween(nowWS, getWeekStart(cDate));
 
-                        : `<span style="color:#374151">${weeksUntil}w left</span>`;
+                        deadlineCell = weeksUntil === 0 ? '<span style="color:#2563eb;font-weight:700">This Week</span>'
+
+                            : weeksUntil < 0 ? '<span style="color:#ef4444;font-weight:700">Overdue</span>'
+
+                            : `<span style="color:#374151">${weeksUntil}w left</span>`;
+
+                    } else if (s === "Past Due") {
+
+                        deadlineCell = '<span style="color:#ef4444;font-weight:700">Past Due</span>';
+
+                    } else if (s === "Follow Up") {
+
+                        deadlineCell = '<span style="color:#2563eb;font-weight:700">Follow Up</span>';
+
+                    }
 
                     tr.innerHTML = `
 
