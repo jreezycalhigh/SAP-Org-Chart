@@ -1476,19 +1476,19 @@ extra_contacts = [
 
         "title": "Senior Director, SAP Engineering",
 
-        "reports_to": "Balaji Balasubramanian",
+        "reports_to": "David Erley",
 
         "priority": "High",
 
         "marker": "RED",
 
-        "org": "Customer Experience (CX)",
+        "org": "NS2",
 
-        "branch": "Balaji Balasubramanian",
+        "branch": "Martin Merz",
 
-        "products": "watsonx Orchestrate / watsonx.governance",
+        "products": "Guardium, watsonx.governance, IBM StorageCEPH, Turbonomic",
 
-        "notes": "Senior Director, SAP Engineering. Reports to Balaji Balasubramanian. Jerome Carlson conducted outreach directly (Eliot CC'd). Key technical contact in the CX engineering org for watsonx Orchestrate automation and governance plays.",
+        "notes": "Senior Director, SAP Engineering (NS2). Reports to David Erley. Jerome Carlson conducted outreach directly (Eliot CC'd). Key technical contact in the NS2 engineering org for watsonx Orchestrate automation, Guardium FedRAMP compliance, and governance plays.",
 
         "owner": "Eliot Frederiksen (IBM Client Executive)",
 
@@ -3409,6 +3409,8 @@ for k, c in contacts.items():
         "schedule": c["schedule"],
 
         "branch": c["branch"],
+
+        "reports_to": c.get("reports_to") or "",
 
         "verification": c.get("verification") or "Not yet run through the public-verification pass.",
 
@@ -5397,6 +5399,14 @@ html_content = f"""<!DOCTYPE html>
                     <div class="detail-value" id="det-org">-</div>
 
                 </div>
+                <div class="detail-row">
+
+                    <div class="detail-label">Reports To (Manager)</div>
+
+                    <div class="detail-value" id="det-reports-to">-</div>
+
+                </div>
+
 
                 <div class="detail-row">
 
@@ -5520,6 +5530,14 @@ html_content = f"""<!DOCTYPE html>
                     <input type="text" id="edit-lob" class="form-input">
 
                 </div>
+                <div class="detail-row">
+
+                    <div class="detail-label">Reports To (Manager)</div>
+
+                    <select id="edit-reports-to" class="form-input"></select>
+
+                </div>
+
 
                 <div class="detail-row">
 
@@ -6197,6 +6215,42 @@ html_content = f"""<!DOCTYPE html>
                 document.getElementById("edit-isc-link").value = contact.iscLink || "";
                 document.getElementById("edit-last-contacted").value = contact.lastTimeContacted || "";
 
+                // Populate reports_to dropdown avoiding self and descendants (loops)
+                const allNames = [];
+                function collectAllNames(node) {{
+                    if (!node) return;
+                    allNames.push(node.name);
+                    if (node.children) {{
+                        node.children.forEach(collectAllNames);
+                    }}
+                }}
+                collectAllNames(orgData);
+                allNames.sort();
+
+                const currentNameLower = currentContactName.toLowerCase();
+                const contactNodeInTree = findContactInTreeOrData(orgData, currentContactName);
+
+                const filteredNames = allNames.filter(name => {{
+                    const nameLower = name.toLowerCase();
+                    if (nameLower === currentNameLower) return false;
+                    if (contactNodeInTree && isDescendant(contactNodeInTree, name)) return false;
+                    return true;
+                }});
+
+                const reportsToSel = document.getElementById("edit-reports-to");
+                if (reportsToSel) {{
+                    reportsToSel.innerHTML = '<option value="">(None - Apex CEO)</option>';
+                    filteredNames.forEach(name => {{
+                        const opt = document.createElement("option");
+                        opt.value = name;
+                        opt.textContent = name;
+                        if (contact.reports_to && contact.reports_to.toLowerCase() === name.toLowerCase()) {{
+                            opt.selected = true;
+                        }}
+                        reportsToSel.appendChild(opt);
+                    }});
+                }}
+
                 // Render Edit steps sequence with checkboxes and channel dropdown selectors
                 const editStepsContainer = document.getElementById("edit-steps-container");
                 editStepsContainer.innerHTML = "";
@@ -6240,6 +6294,176 @@ html_content = f"""<!DOCTYPE html>
 
             document.getElementById("edit-mode-container").style.display = "none";
 
+        }}
+
+        function isDescendant(parentNode, targetName) {{
+            if (!parentNode || !parentNode.children) return false;
+            for (let child of parentNode.children) {{
+                if (child.name.toLowerCase() === targetName.toLowerCase()) {{
+                    return true;
+                }}
+                if (isDescendant(child, targetName)) {{
+                    return true;
+                }}
+            }}
+            return false;
+        }}
+
+        function findContactInTreeOrData(root, name) {{
+            if (!root) return null;
+            if (root.name.toLowerCase() === name.toLowerCase()) return root;
+            if (root.children) {{
+                for (let child of root.children) {{
+                    const found = findContactInTreeOrData(child, name);
+                    if (found) return found;
+                }}
+            }}
+            return null;
+        }}
+
+        function getBranchNameForManager(managerName) {{
+            if (!managerName) return "";
+            let current = managerName.toLowerCase();
+            const branchHeadsList = [
+                "lawrence martin", "balaji balasubramanian", "siva sundaresan",
+                "vijay seethapathy", "martin merz", "cedric bru", "customer & cloud ops (cdx)",
+                "jonathan von rueden", "andre wenz", "dominik rose", "irfan khan",
+                "anirban majumdar", "dagmar schaffner", "eva klingbeil", "georg kniese",
+                "gunther rothermel", "kai muhlbauer", "sophia mendelsohn", "tanja birli", "yaad oren"
+            ];
+            
+            const visited = new Set();
+            while (current) {{
+                if (visited.has(current)) break;
+                visited.add(current);
+                
+                if (branchHeadsList.includes(current)) {{
+                    const node = findContactInTreeOrData(orgData, current);
+                    return node ? node.name : current;
+                }}
+                
+                const node = findContactInTreeOrData(orgData, current);
+                if (node && node.reports_to) {{
+                    current = node.reports_to.toLowerCase();
+                }} else {{
+                    break;
+                }}
+            }}
+            return "";
+        }}
+
+        function updateBranchRecursively(node, branchName) {{
+            if (!node) return;
+            node.branch = branchName;
+            
+            const idx = callListData.findIndex(c => c.name.toLowerCase() === node.name.toLowerCase());
+            if (idx !== -1) {{
+                callListData[idx].branch = branchName;
+            }}
+            
+            if (node.children) {{
+                node.children.forEach(child => updateBranchRecursively(child, branchName));
+            }}
+        }}
+
+        function moveNodeInTree(savedName, newReportsTo) {{
+            if (savedName.toLowerCase() === orgData.name.toLowerCase()) {{
+                return false;
+            }}
+            
+            let nodeToMove = null;
+            function removeNodeFromParent(parent) {{
+                if (!parent || !parent.children) return false;
+                const idx = parent.children.findIndex(c => c.name.toLowerCase() === savedName.toLowerCase());
+                if (idx !== -1) {{
+                    nodeToMove = parent.children.splice(idx, 1)[0];
+                    return true;
+                }}
+                for (let child of parent.children) {{
+                    if (removeNodeFromParent(child)) return true;
+                }}
+                return false;
+            }}
+            
+            removeNodeFromParent(orgData);
+            
+            if (nodeToMove) {{
+                nodeToMove.reports_to = newReportsTo;
+                const newBranch = getBranchNameForManager(newReportsTo);
+                updateBranchRecursively(nodeToMove, newBranch);
+                
+                if (newReportsTo) {{
+                    function appendNodeToParent(parent) {{
+                        if (!parent) return false;
+                        if (parent.name.toLowerCase() === newReportsTo.toLowerCase()) {{
+                            if (!parent.children) parent.children = [];
+                            parent.children.push(nodeToMove);
+                            return true;
+                        }}
+                        if (parent.children) {{
+                            for (let child of parent.children) {{
+                                if (appendNodeToParent(child)) return true;
+                            }}
+                        }}
+                        return false;
+                    }}
+                    const appended = appendNodeToParent(orgData);
+                    if (!appended) {{
+                        if (!orgData.children) orgData.children = [];
+                        orgData.children.push(nodeToMove);
+                        nodeToMove.reports_to = orgData.name;
+                        updateBranchRecursively(nodeToMove, getBranchNameForManager(orgData.name));
+                    }}
+                }} else {{
+                    if (!orgData.children) orgData.children = [];
+                    orgData.children.push(nodeToMove);
+                    nodeToMove.reports_to = orgData.name;
+                    updateBranchRecursively(nodeToMove, getBranchNameForManager(orgData.name));
+                }}
+                return true;
+            }}
+            return false;
+        }}
+
+        function sortTreeChildrenJS(node) {{
+            if (!node || !node.children) return;
+            node.children.sort((a, b) => {{
+                const orgA = (a.org || "").toLowerCase();
+                const orgB = (b.org || "").toLowerCase();
+                if (orgA !== orgB) return orgA.localeCompare(orgB);
+                const nameA = (a.name || "").toLowerCase();
+                const nameB = (b.name || "").toLowerCase();
+                return nameA.localeCompare(nameB);
+            }});
+            node.children.forEach(sortTreeChildrenJS);
+        }}
+
+        function saveExpansionStates() {{
+            const expandedNodeIds = new Set();
+            document.querySelectorAll("#org-tree-root-container .tree-node-container").forEach(container => {{
+                const tc = container.querySelector(":scope > .tree-children");
+                if (tc && !tc.classList.contains("collapsed-children")) {{
+                    expandedNodeIds.add(container.id);
+                }}
+            }});
+            return expandedNodeIds;
+        }}
+
+        function restoreExpansionStates(expandedNodeIds) {{
+            expandedNodeIds.forEach(id => {{
+                const container = document.getElementById(id);
+                if (container) {{
+                    const tc = container.querySelector(":scope > .tree-children");
+                    const toggle = container.querySelector(":scope > .node-card .card-name-toggle");
+                    if (tc) {{
+                        tc.classList.remove("collapsed-children");
+                    }}
+                    if (toggle) {{
+                        toggle.innerText = "−";
+                    }}
+                }}
+            }});
+            updateAllWrappingClasses();
         }}
 
         function updateNodeInTree(node, targetName, updatedFields) {{
@@ -6316,9 +6540,26 @@ html_content = f"""<!DOCTYPE html>
 
             const newLob = document.getElementById("edit-lob").value.trim();
 
+            const newReportsTo = document.getElementById("edit-reports-to").value;
+
             const savedName = currentContactName;
 
             if (!newTitle) {{ alert("Job title cannot be empty!"); return; }}
+
+            // Circular loop check for manager assignment
+            const contactNode = findContactInTreeOrData(orgData, savedName);
+            const oldReportsTo = (contactNode && contactNode.reports_to) || "";
+
+            if (newReportsTo !== oldReportsTo) {{
+                if (newReportsTo.toLowerCase() === savedName.toLowerCase()) {{
+                    alert("A contact cannot report to themselves!");
+                    return;
+                }}
+                if (contactNode && isDescendant(contactNode, newReportsTo)) {{
+                    alert("Circular dependency detected! A contact cannot report to one of their own descendants.");
+                    return;
+                }}
+            }}
 
             // Auto-recalculate schedule if priority changed to something more urgent
 
@@ -6361,7 +6602,12 @@ html_content = f"""<!DOCTYPE html>
                 }};
             }}
 
-            // Update orgData tree
+            // Move node in structural tree if parent changed
+            if (newReportsTo !== oldReportsTo) {{
+                moveNodeInTree(savedName, newReportsTo);
+            }}
+
+            // Update orgData tree properties
 
             updateNodeInTree(orgData, savedName, {{
 
@@ -6374,6 +6620,8 @@ html_content = f"""<!DOCTYPE html>
                 lastTimeContacted: newLastContacted, steps: newSteps,
 
                 org: newLob,
+
+                reports_to: newReportsTo || orgData.name,
 
                 ...verificationUpdate
 
@@ -6409,6 +6657,11 @@ html_content = f"""<!DOCTYPE html>
 
                 callListData[idx].steps    = newSteps;
 
+                callListData[idx].reports_to = newReportsTo || orgData.name;
+
+                const newBranch = getBranchNameForManager(newReportsTo || orgData.name);
+                callListData[idx].branch = newBranch;
+
                 if (newEmail || newLinkedin) {{
                     callListData[idx].verification = "Verified";
                     callListData[idx].verification_note = "Automatically verified because contact details (Email / LinkedIn) have been entered.";
@@ -6416,29 +6669,17 @@ html_content = f"""<!DOCTYPE html>
 
             }}
 
-            // Patch org-chart card in-place (tree stays expanded)
+            // Save expansion states
+            const expandedNodeIds = saveExpansionStates();
 
-            const cardId = "card-" + savedName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+            // Sort tree based on LOB then name
+            sortTreeChildrenJS(orgData);
 
-            const card = document.getElementById(cardId);
+            // Re-render visual tree to reflect structural moves and groupings immediately
+            renderOrgTree();
 
-            if (card) {{
-
-                card.className = card.className.replace(/priority-[^ ]+/, "priority-" + newPriority);
-
-                const pill = card.querySelector(".card-priority-pill");
-
-                if (pill) pill.innerText = newPriority;
-
-                const titleEl = card.querySelector(".card-title");
-
-                if (titleEl) titleEl.innerText = newTitle;
-
-                const orgEl = card.querySelector(".card-org");
-
-                if (orgEl) orgEl.innerText = newLob;
-
-            }}
+            // Restore expansion states to prevent collapsing tree
+            restoreExpansionStates(expandedNodeIds);
 
             // Close edit mode, write fields directly, keep panel open
 
@@ -6722,7 +6963,11 @@ html_content = f"""<!DOCTYPE html>
 
                         lastTimeContacted: c.lastTimeContacted || "",
 
-                        steps:         c.steps         || []
+                        steps:         c.steps         || [],
+
+                        org:           c.org           || "",
+
+                        reports_to:    c.reports_to    || ""
 
                     }};
 
@@ -6743,7 +6988,9 @@ html_content = f"""<!DOCTYPE html>
                         linkedinUrl:   node.linkedinUrl   || "",
                         iscLink:       node.iscLink       || "",
                         lastTimeContacted: node.lastTimeContacted || "",
-                        steps:         node.steps         || []
+                        steps:         node.steps         || [],
+                        org:           node.org           || "",
+                        reports_to:    node.reports_to    || ""
                     }};
                     if (node.children) {{
                         node.children.forEach(c => saveTreeNodes(c));
@@ -6777,6 +7024,25 @@ html_content = f"""<!DOCTYPE html>
                     localStorage.removeItem(LS_KEY);
                     return;
                 }}
+
+                // Perform structural moves from local storage edits
+                const movesToPerform = [];
+                function collectMoves(node) {{
+                    if (!node) return;
+                    const id = (node.name || "").toLowerCase().replace(/[^a-z0-9]/g, "_");
+                    const e = edits[id];
+                    if (e && e.reports_to && e.reports_to !== node.reports_to) {{
+                        movesToPerform.push({{ name: node.name, newReportsTo: e.reports_to }});
+                    }}
+                    if (node.children) {{
+                        node.children.forEach(collectMoves);
+                    }}
+                }}
+                collectMoves(orgData);
+
+                movesToPerform.forEach(m => {{
+                    moveNodeInTree(m.name, m.newReportsTo);
+                }});
 
                 // Apply to orgData tree
 
@@ -6813,6 +7079,10 @@ html_content = f"""<!DOCTYPE html>
                         if (e.lastTimeContacted !== undefined) node.lastTimeContacted = e.lastTimeContacted;
 
                         if (e.steps !== undefined) node.steps = e.steps;
+
+                        if (e.org)           node.org           = e.org;
+
+                        if (e.reports_to)    node.reports_to    = e.reports_to;
 
                     }}
 
@@ -6856,9 +7126,16 @@ html_content = f"""<!DOCTYPE html>
 
                         if (e.steps !== undefined) c.steps = e.steps;
 
+                        if (e.org)           c.org           = e.org;
+
+                        if (e.reports_to)    c.reports_to    = e.reports_to;
+
                     }}
 
                 }});
+
+                // Sort tree of orgData to ensure correct visual order on load
+                sortTreeChildrenJS(orgData);
 
             }} catch(e) {{ console.warn("Load from storage failed:", e.message); }}
 
@@ -7139,6 +7416,10 @@ html_content = f"""<!DOCTYPE html>
 
                         }}
 
+                    }}
+
+                    if (!matchedLOB && childLOB.trim().length > 0) {{
+                        matchedLOB = childLOB.trim();
                     }}
 
                     if (matchedLOB && (currentLOB === null || matchedLOB === currentLOB)) {{
@@ -8530,6 +8811,8 @@ html_content = f"""<!DOCTYPE html>
 
                         schedule: found.schedule || "N/A",
 
+                        reports_to: found.reports_to || "",
+
                         verification: found.verification || "Verified",
 
                         verification_note: found.verification_note || "Branch Head node."
@@ -8549,6 +8832,11 @@ html_content = f"""<!DOCTYPE html>
                 document.getElementById("det-title").innerText = contact.title;
 
                 document.getElementById("det-org").innerText = contact.org;
+
+                const reportsToEl = document.getElementById("det-reports-to");
+                if (reportsToEl) {{
+                    reportsToEl.innerText = contact.reports_to || "None (Absolute Root)";
+                }}
 
                 document.getElementById("det-priority").innerText = contact.priority;
 
