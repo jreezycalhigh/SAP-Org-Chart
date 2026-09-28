@@ -6,8 +6,8 @@ An interactive outreach management application, org chart, and verification tool
 
 You can interact with the live dashboard and interactive family-tree org chart directly through your web browser via **GitHub Pages**. 
 
-*Once GitHub Pages is enabled on this repository, the link will be:*
-**`https://<your-github-username>.github.io/<your-repo-name>/SAP_Account_Priority_Outreach_Hub.html`**
+*Access the live interactive org chart and outreach portal at:*
+**[https://jreezycalhigh.github.io/SAP-Org-Chart/SAP_Account_Priority_Outreach_Hub.html](https://jreezycalhigh.github.io/SAP-Org-Chart/SAP_Account_Priority_Outreach_Hub.html)**
 
 ---
 

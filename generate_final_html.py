@@ -5675,6 +5675,15 @@ html_content = f"""<!DOCTYPE html>
         let callListData = {json.dumps(call_list, ensure_ascii=False)};
         const COMPILED_AT = {compiled_at};
 
+        // Enforce clean URL: immediately strip any hashtag/hash from the URL bar to prevent alternate routing/loading
+        if (window.location.hash) {{
+            try {{
+                history.replaceState(null, document.title, window.location.pathname + window.location.search);
+            }} catch (e) {{
+                window.location.hash = "";
+            }}
+        }}
+
 
         // Filter state
         const GH_KEY_PREFIX = "sap_gh_";
