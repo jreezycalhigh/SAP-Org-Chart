@@ -3424,6 +3424,9 @@ call_list.sort(key=lambda x: priority_order.get(x["priority"], 9))
 schedule_options_html = '<option value="N/A">N/A</option>\\n<option value="This Week">This Week</option>\\n' + "\\n".join(f'<option value="Week {w}">Week {w}</option>' for w in range(2, 31))
 
 
+import time
+compiled_at = int(time.time())
+
 html_content = f"""<!DOCTYPE html>
 
 <html lang="en">
@@ -5670,6 +5673,8 @@ html_content = f"""<!DOCTYPE html>
         let orgData = {json.dumps(root_node, ensure_ascii=False)};
 
         let callListData = {json.dumps(call_list, ensure_ascii=False)};
+        const COMPILED_AT = {compiled_at};
+
 
         // Filter state
         const GH_KEY_PREFIX = "sap_gh_";
@@ -6999,6 +7004,7 @@ html_content = f"""<!DOCTYPE html>
                 saveTreeNodes(orgData);
 
                 localStorage.setItem(LS_KEY, JSON.stringify(edits));
+                localStorage.setItem("sap_compiled_at", COMPILED_AT.toString());
 
             }} catch(e) {{ console.warn("Autosave failed:", e.message); }}
 
@@ -7017,6 +7023,14 @@ html_content = f"""<!DOCTYPE html>
                 const raw = localStorage.getItem(LS_KEY);
 
                 if (!raw) return;
+
+                const localCompiledAt = parseInt(localStorage.getItem("sap_compiled_at") || "0", 10);
+                if (COMPILED_AT > localCompiledAt) {{
+                    console.log("Remote HTML is newer than local cache. Clearing old localStorage.");
+                    localStorage.removeItem(LS_KEY);
+                    localStorage.setItem("sap_compiled_at", COMPILED_AT.toString());
+                    return;
+                }}
 
                 let edits;
                 try {{ edits = JSON.parse(raw); }} catch(e) {{
