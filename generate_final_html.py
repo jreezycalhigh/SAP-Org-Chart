@@ -9052,6 +9052,213 @@ html_content = f"""<!DOCTYPE html>
             document.getElementById("github-sync-overlay").classList.remove("active");
         }}
 
+        function mergeLocalEditsIntoRemote(remoteOrg, remoteCallList, localEdits) {{
+            if (!localEdits) return;
+            
+            function applyEditsToNode(node, e) {{
+                if (e.priority)      node.priority      = e.priority;
+                if (e.owner)         node.owner         = e.owner;
+                if (e.products)      node.products      = e.products;
+                if (e.notes)         node.notes         = e.notes;
+                if (e.schedule)      node.schedule      = e.schedule;
+                if (e.schedule_week) node.schedule_week = e.schedule_week;
+                if (e.title)         node.title         = e.title;
+                if (e.email !== undefined) node.email = e.email;
+                if (e.linkedinUrl !== undefined) node.linkedinUrl = e.linkedinUrl;
+                if (e.iscLink !== undefined) node.iscLink = e.iscLink;
+                if (e.lastTimeContacted !== undefined) node.lastTimeContacted = e.lastTimeContacted;
+                if (e.steps !== undefined) node.steps = e.steps;
+                if (e.org)           node.org           = e.org;
+                if (e.reports_to)    node.reports_to    = e.reports_to;
+            }}
+
+            function moveNodeInRemoteTree(savedName, newReportsTo) {{
+                if (savedName.toLowerCase() === remoteOrg.name.toLowerCase()) {{
+                    return false;
+                }}
+                
+                let nodeToMove = null;
+                function removeNodeFromParent(parent) {{
+                    if (!parent || !parent.children) return false;
+                    const idx = parent.children.findIndex(c => c.name.toLowerCase() === savedName.toLowerCase());
+                    if (idx !== -1) {{
+                        nodeToMove = parent.children.splice(idx, 1)[0];
+                        return true;
+                    }}
+                    for (let child of parent.children) {{
+                        if (removeNodeFromParent(child)) return true;
+                    }}
+                    return false;
+                }}
+                
+                removeNodeFromParent(remoteOrg);
+                
+                if (nodeToMove) {{
+                    nodeToMove.reports_to = newReportsTo;
+                    
+                    if (newReportsTo) {{
+                        function appendNodeToParent(parent) {{
+                            if (!parent) return false;
+                            if (parent.name.toLowerCase() === newReportsTo.toLowerCase()) {{
+                                if (!parent.children) parent.children = [];
+                                parent.children.push(nodeToMove);
+                                return true;
+                            }}
+                            if (parent.children) {{
+                                for (let child of parent.children) {{
+                                    if (appendNodeToParent(child)) return true;
+                                }}
+                            }}
+                            return false;
+                        }}
+                        const appended = appendNodeToParent(remoteOrg);
+                        if (!appended) {{
+                            if (!remoteOrg.children) remoteOrg.children = [];
+                            remoteOrg.children.push(nodeToMove);
+                            nodeToMove.reports_to = remoteOrg.name;
+                        }}
+                    }} else {{
+                        if (!remoteOrg.children) remoteOrg.children = [];
+                        remoteOrg.children.push(nodeToMove);
+                        nodeToMove.reports_to = remoteOrg.name;
+                    }}
+                    return true;
+                }}
+                return false;
+            }}
+
+            function findNodeInRemoteTree(root, targetName) {{
+                if (!root) return null;
+                if (root.name.toLowerCase() === targetName.toLowerCase()) return root;
+                if (root.children) {{
+                    for (let child of root.children) {{
+                        const found = findNodeInRemoteTree(child, targetName);
+                        if (found) return found;
+                    }}
+                }}
+                return null;
+            }}
+
+            const originalReportsTo = {{}};
+            function collectOriginalReportsTo(node) {{
+                if (!node) return;
+                originalReportsTo[node.name.toLowerCase()] = node.reports_to || "";
+                if (node.children) node.children.forEach(collectOriginalReportsTo);
+            }}
+            collectOriginalReportsTo(remoteOrg);
+
+            Object.entries(localEdits).forEach(([id, e]) => {{
+                const name = id.replace(/_/g, " ");
+                const cEntry = remoteCallList.find(c => (c.name || "").toLowerCase().replace(/[^a-z0-9]/g, "_") === id);
+                const exactName = cEntry ? cEntry.name : name;
+                
+                const oldRep = originalReportsTo[exactName.toLowerCase()] || "";
+                if (e.reports_to && e.reports_to !== oldRep) {{
+                    moveNodeInRemoteTree(exactName, e.reports_to);
+                }}
+            }});
+
+            function applyAllEditsToRemoteTree(node) {{
+                if (!node) return;
+                const id = (node.name || "").toLowerCase().replace(/[^a-z0-9]/g, "_");
+                const e = localEdits[id];
+                if (e) {{
+                    applyEditsToNode(node, e);
+                }}
+                if (node.children) node.children.forEach(applyAllEditsToRemoteTree);
+            }}
+            applyAllEditsToRemoteTree(remoteOrg);
+
+            remoteCallList.forEach(c => {{
+                const id = (c.name || "").toLowerCase().replace(/[^a-z0-9]/g, "_");
+                const e = localEdits[id];
+                if (e) {{
+                    if (e.priority)      c.priority      = e.priority;
+                    if (e.owner)         c.owner         = e.owner;
+                    if (e.products)      c.products      = e.products;
+                    if (e.notes)         c.notes         = e.notes;
+                    if (e.schedule)      c.schedule      = e.schedule;
+                    if (e.schedule_week) c.schedule_week = e.schedule_week;
+                    if (e.title)         c.title         = e.title;
+                    if (e.email !== undefined) c.email = e.email;
+                    if (e.linkedinUrl !== undefined) c.linkedinUrl = e.linkedinUrl;
+                    if (e.iscLink !== undefined) c.iscLink = e.iscLink;
+                    if (e.lastTimeContacted !== undefined) c.lastTimeContacted = e.lastTimeContacted;
+                    if (e.steps !== undefined) c.steps = e.steps;
+                    if (e.org)           c.org           = e.org;
+                    if (e.reports_to)    c.reports_to    = e.reports_to;
+                    
+                    const newBranch = getBranchNameForRemoteManager(remoteOrg, e.reports_to || c.reports_to);
+                    c.branch = newBranch;
+                }}
+            }});
+
+            function getBranchNameForRemoteManager(root, managerName) {{
+                if (!managerName) return "";
+                let current = managerName.toLowerCase();
+                const branchHeadsList = [
+                    "lawrence martin", "balaji balasubramanian", "siva sundaresan",
+                    "vijay seethapathy", "martin merz", "cedric bru", "customer & cloud ops (cdx)",
+                    "jonathan von rueden", "andre wenz", "dominik rose", "irfan khan",
+                    "anirban majumdar", "dagmar schaffner", "eva klingbeil", "georg kniese",
+                    "gunther rothermel", "kai muhlbauer", "sophia mendelsohn", "tanja birli", "yaad oren"
+                ];
+                
+                const visited = new Set();
+                while (current) {{
+                    if (visited.has(current)) break;
+                    visited.add(current);
+                    
+                    if (branchHeadsList.includes(current)) {{
+                        const node = findNodeInRemoteTree(root, current);
+                        return node ? node.name : current;
+                    }}
+                    
+                    const node = findNodeInRemoteTree(root, current);
+                    if (node && node.reports_to) {{
+                        current = node.reports_to.toLowerCase();
+                    }} else {{
+                        break;
+                    }}
+                }}
+                return "";
+            }}
+
+            function updateRemoteBranches(node, rootNode, parentBranch) {{
+                if (!node) return;
+                let currentBranch = parentBranch;
+                const branchHeadsList = [
+                    "lawrence martin", "balaji balasubramanian", "siva sundaresan",
+                    "vijay seethapathy", "martin merz", "cedric bru", "customer & cloud ops (cdx)",
+                    "jonathan von rueden", "andre wenz", "dominik rose", "irfan khan",
+                    "anirban majumdar", "dagmar schaffner", "eva klingbeil", "georg kniese",
+                    "gunther rothermel", "kai muhlbauer", "sophia mendelsohn", "tanja birli", "yaad oren"
+                ];
+                if (branchHeadsList.includes(node.name.toLowerCase())) {{
+                    currentBranch = node.name;
+                }}
+                node.branch = currentBranch;
+                if (node.children) {{
+                    node.children.forEach(child => updateRemoteBranches(child, rootNode, currentBranch));
+                }}
+            }}
+            updateRemoteBranches(remoteOrg, remoteOrg, "");
+
+            function sortRemoteTree(node) {{
+                if (!node || !node.children) return;
+                node.children.sort((a, b) => {{
+                    const orgA = (a.org || "").toLowerCase();
+                    const orgB = (b.org || "").toLowerCase();
+                    if (orgA !== orgB) return orgA.localeCompare(orgB);
+                    const nameA = (a.name || "").toLowerCase();
+                    const nameB = (b.name || "").toLowerCase();
+                    return nameA.localeCompare(nameB);
+                }});
+                node.children.forEach(sortRemoteTree);
+            }}
+            sortRemoteTree(remoteOrg);
+        }}
+
         async function syncEditsToGitHub() {{
             const statusEl = document.getElementById("gh-sync-status");
             const pat = document.getElementById("gh-pat").value.trim() || DEFAULT_PAT;
@@ -9095,24 +9302,62 @@ html_content = f"""<!DOCTYPE html>
                 // Step 2: Inject our updated in-memory dataset
                 let updatedHTML = originalHTML;
 
-                // Replace orgData line
-                const orgDataRegex = /let orgData = \\{{.*\\}};/;
-                const newOrgDataLine = "let orgData = " + JSON.stringify(orgData) + ";";
-                if (orgDataRegex.test(updatedHTML)) {{
-                    updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
-                }} else {{
-                    const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + String.fromCharCode(10));
-                }}
+                const remoteOrgMatch = originalHTML.match(/let orgData = (\\{{[^]*?\\}});/);
+                const remoteCallListMatch = originalHTML.match(/let callListData = (\\\\[[^]*?\\\\]);/);
 
-                // Replace callListData line
-                const callListDataRegex = /let callListData = \\[.*\\];/;
-                const newCallListDataLine = "let callListData = " + JSON.stringify(callListData) + ";";
-                if (callListDataRegex.test(updatedHTML)) {{
-                    updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
+                if (remoteOrgMatch && remoteCallListMatch) {{
+                    const remoteOrg = JSON.parse(remoteOrgMatch[1]);
+                    const remoteCallList = JSON.parse(remoteCallListMatch[1]);
+                    const localEdits = JSON.parse(localStorage.getItem(LS_KEY)) || {{}};
+
+                    // Merge our local edits cleanly on top of the remote state (collaboration merge)
+                    mergeLocalEditsIntoRemote(remoteOrg, remoteCallList, localEdits);
+
+                    const newOrgDataLine = "let orgData = " + JSON.stringify(remoteOrg) + ";";
+                    const newCallListDataLine = "let callListData = " + JSON.stringify(remoteCallList) + ";";
+
+                    const orgDataRegex = /let orgData = \\{{.*\\}};/;
+                    if (orgDataRegex.test(updatedHTML)) {{
+                        updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
+                    }} else {{
+                        const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*/;
+                        updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + String.fromCharCode(10));
+                    }}
+
+                    const callListDataRegex = /let callListData = \\[.*\\];/;
+                    if (callListDataRegex.test(updatedHTML)) {{
+                        updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
+                    }} else {{
+                        const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*/;
+                        updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + String.fromCharCode(10));
+                    }}
+
+                    // Sync our local in-memory dataset to match the merged remote dataset
+                    orgData = remoteOrg;
+                    callListData = remoteCallList;
+
+                    renderOrgTree();
+                    renderCallList();
+                    renderScheduleTab();
                 }} else {{
-                    const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + String.fromCharCode(10));
+                    const newOrgDataLine = "let orgData = " + JSON.stringify(orgData) + ";";
+                    const newCallListDataLine = "let callListData = " + JSON.stringify(callListData) + ";";
+
+                    const orgDataRegex = /let orgData = \\{{.*\\}};/;
+                    if (orgDataRegex.test(updatedHTML)) {{
+                        updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
+                    }} else {{
+                        const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*/;
+                        updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + String.fromCharCode(10));
+                    }}
+
+                    const callListDataRegex = /let callListData = \\[.*\\];/;
+                    if (callListDataRegex.test(updatedHTML)) {{
+                        updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
+                    }} else {{
+                        const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*/;
+                        updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + String.fromCharCode(10));
+                    }}
                 }}
 
                 // Replace _extraSellerPool line
@@ -9240,24 +9485,62 @@ html_content = f"""<!DOCTYPE html>
 
                 let updatedHTML = originalHTML;
 
-                // Replace orgData line
-                const orgDataRegex = /let orgData = \\{{.*\\}};/;
-                const newOrgDataLine = "let orgData = " + JSON.stringify(orgData) + ";";
-                if (orgDataRegex.test(updatedHTML)) {{
-                    updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
-                }} else {{
-                    const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + String.fromCharCode(10));
-                }}
+                const remoteOrgMatch = originalHTML.match(/let orgData = (\\{{[^]*?\\}});/);
+                const remoteCallListMatch = originalHTML.match(/let callListData = (\\\\[[^]*?\\\\]);/);
 
-                // Replace callListData line
-                const callListDataRegex = /let callListData = \\[.*\\];/;
-                const newCallListDataLine = "let callListData = " + JSON.stringify(callListData) + ";";
-                if (callListDataRegex.test(updatedHTML)) {{
-                    updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
+                if (remoteOrgMatch && remoteCallListMatch) {{
+                    const remoteOrg = JSON.parse(remoteOrgMatch[1]);
+                    const remoteCallList = JSON.parse(remoteCallListMatch[1]);
+                    const localEdits = JSON.parse(localStorage.getItem(LS_KEY)) || {{}};
+
+                    // Merge our local edits cleanly on top of the remote state (collaboration merge)
+                    mergeLocalEditsIntoRemote(remoteOrg, remoteCallList, localEdits);
+
+                    const newOrgDataLine = "let orgData = " + JSON.stringify(remoteOrg) + ";";
+                    const newCallListDataLine = "let callListData = " + JSON.stringify(remoteCallList) + ";";
+
+                    const orgDataRegex = /let orgData = \\{{.*\\}};/;
+                    if (orgDataRegex.test(updatedHTML)) {{
+                        updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
+                    }} else {{
+                        const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*/;
+                        updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + String.fromCharCode(10));
+                    }}
+
+                    const callListDataRegex = /let callListData = \\[.*\\];/;
+                    if (callListDataRegex.test(updatedHTML)) {{
+                        updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
+                    }} else {{
+                        const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*/;
+                        updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + String.fromCharCode(10));
+                    }}
+
+                    // Sync our local in-memory dataset to match the merged remote dataset
+                    orgData = remoteOrg;
+                    callListData = remoteCallList;
+
+                    renderOrgTree();
+                    renderCallList();
+                    renderScheduleTab();
                 }} else {{
-                    const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*/;
-                    updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + String.fromCharCode(10));
+                    const newOrgDataLine = "let orgData = " + JSON.stringify(orgData) + ";";
+                    const newCallListDataLine = "let callListData = " + JSON.stringify(callListData) + ";";
+
+                    const orgDataRegex = /let orgData = \\{{.*\\}};/;
+                    if (orgDataRegex.test(updatedHTML)) {{
+                        updatedHTML = updatedHTML.replace(orgDataRegex, newOrgDataLine);
+                    }} else {{
+                        const fallbackRegex = /let orgData = \\{{[^]*?\\}};\s*/;
+                        updatedHTML = updatedHTML.replace(fallbackRegex, newOrgDataLine + String.fromCharCode(10));
+                    }}
+
+                    const callListDataRegex = /let callListData = \\[.*\\];/;
+                    if (callListDataRegex.test(updatedHTML)) {{
+                        updatedHTML = updatedHTML.replace(callListDataRegex, newCallListDataLine);
+                    }} else {{
+                        const fallbackRegex = /let callListData = \\\\[[^]*?\\\\];\s*/;
+                        updatedHTML = updatedHTML.replace(fallbackRegex, newCallListDataLine + String.fromCharCode(10));
+                    }}
                 }}
 
                 // Replace _extraSellerPool line
